@@ -1,0 +1,808 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>CMA Yusa</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Mono:wght@400;500&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+/* Layout: one reading column. Home shows two Part cards, then each click moves one level down:
+   Part, Section, Unit, Sub-unit notes. Notes are set like a textbook page, with workings in ledger style. */
+:root {
+  --bg: #F2F6F7;
+  --surface: #FFFFFF;
+  --ink: #13242C;
+  --muted: #56696F;
+  --line: #D2DDE1;
+  --accent: #0E5C7B;
+  --accent-ink: #FFFFFF;
+  --accent-soft: #E0EEF3;
+  --good: #1B7B4B;
+  --good-soft: #E3F3EA;
+  --bad: #B0352D;
+  --bad-soft: #FAE8E6;
+  --warn: #8A5A00;
+  --warn-soft: #FBF0D9;
+  --font-display: 'Bricolage Grotesque', 'Segoe UI', system-ui, sans-serif;
+  --font-body: 'Source Sans 3', 'Segoe UI', system-ui, sans-serif;
+  --font-num: 'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0E171B; --surface: #152229; --ink: #E6EEF1; --muted: #93A6AE; --line: #29393F;
+    --accent: #5DB7D8; --accent-ink: #08212B; --accent-soft: #163340;
+    --good: #55C48B; --good-soft: #14301F; --bad: #F0867F; --bad-soft: #3A1B19;
+    --warn: #E8B45A; --warn-soft: #352A12;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0E171B; --surface: #152229; --ink: #E6EEF1; --muted: #93A6AE; --line: #29393F;
+  --accent: #5DB7D8; --accent-ink: #08212B; --accent-soft: #163340;
+  --good: #55C48B; --good-soft: #14301F; --bad: #F0867F; --bad-soft: #3A1B19;
+  --warn: #E8B45A; --warn-soft: #352A12;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 17px;
+  line-height: 1.6;
+  padding-block: 24px 64px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; line-height: 1.18; }
+p { margin: 0; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+.eyebrow { font-size: 13px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+h1 { font-size: clamp(28px, 6vw, 40px); font-weight: 700; margin-top: 6px; }
+.lede { color: var(--muted); margin-top: 10px; max-width: 58ch; }
+.foot { font-size: 14px; color: var(--muted); }
+
+/* breadcrumbs */
+.crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; font-size: 14px; }
+.crumb { background: none; border: 0; padding: 4px 2px; color: var(--accent); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.crumb.cur { color: var(--muted); text-decoration: none; cursor: default; }
+.sep { color: var(--muted); }
+/* sub-unit pages keep the breadcrumb pinned to the bottom of the screen */
+.crumbbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; background: var(--surface); border-top: 1px solid var(--line); box-shadow: 0 -4px 16px rgba(0, 0, 0, .10); padding: 4px max(16px, env(safe-area-inset-right, 0px)) calc(4px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
+.crumbbar-in { max-width: 760px; margin: 0 auto; }
+.crumbs.big { font-size: 17px; gap: 0 8px; }
+.crumbs.big .crumb { padding: 0 4px; min-height: 44px; display: inline-flex; align-items: center; }
+.crumbs.big .crumb.cur { color: var(--ink); font-weight: 600; }
+.wrap.has-bar { padding-bottom: 48px; }
+.homehead { position: relative; }
+.homehead .eyebrow, .homehead h1 { padding-right: 56px; }
+.profile { position: absolute; top: 0; right: 0; display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 2px solid var(--accent); border-radius: 50%; background: var(--surface); color: var(--accent); cursor: pointer; }
+.profile svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.profile:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+.profile[aria-expanded="true"] { background: var(--accent); color: var(--accent-ink); }
+.pcard { position: absolute; top: 54px; right: 0; z-index: 25; width: min(280px, 100%); display: flex; flex-direction: column; gap: 14px; padding: 18px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 10px 30px rgba(0, 0, 0, .18); }
+.pcard[hidden] { display: none; }
+.pname { margin: 0; font-family: var(--font-display); font-size: 20px; font-weight: 700; letter-spacing: .03em; line-height: 1.2; }
+.pig, .pfb { display: flex; align-items: center; gap: 12px; min-height: 44px; color: var(--ink); text-decoration: none; }
+.pig svg, .pfb svg { flex: none; width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.pig { color: var(--accent); }
+.pig span { display: flex; flex-direction: column; line-height: 1.25; }
+.pig b { font-weight: 600; color: var(--muted); font-size: 13px; }
+.pig i { font-style: normal; font-family: var(--font-num); font-size: 16px; font-weight: 500; color: var(--ink); }
+.pig:hover i { text-decoration: underline; }
+.pfb { justify-content: center; border: 1px solid var(--accent); border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 600; padding: 11px 16px; }
+.pfb:hover { filter: brightness(1.08); }
+.pig:focus-visible, .pfb:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+
+/* shared bits */
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+.panel h2 { font-size: 20px; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 1px solid var(--accent); background: var(--accent); color: var(--accent-ink); font-weight: 600; padding: 11px 18px; border-radius: 8px; cursor: pointer; min-height: 44px; }
+.btn:hover { filter: brightness(1.08); }
+.btn[disabled] { opacity: .45; cursor: not-allowed; filter: none; }
+.btn.ghost { background: transparent; color: var(--accent); }
+.btn.done { background: var(--good-soft); color: var(--good); border-color: var(--good); }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.tag { display: inline-block; font-family: var(--font-num); font-size: 12px; font-weight: 500; letter-spacing: .04em; color: var(--accent); background: var(--accent-soft); padding: 3px 9px; border-radius: 999px; }
+.bar { height: 6px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--accent); border-radius: 999px; transition: width .25s ease; }
+.meta { display: flex; flex-wrap: wrap; gap: 6px 20px; font-family: var(--font-num); font-size: 13.5px; color: var(--muted); }
+.meta b { color: var(--ink); font-weight: 500; }
+
+/* home: part cards */
+.parts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 14px; }
+.part { text-align: left; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 12px; cursor: pointer; min-width: 0; }
+.part:hover { border-color: var(--accent); }
+.part .pn { font-family: var(--font-display); font-size: 34px; font-weight: 700; line-height: 1; color: var(--accent); }
+.part .pt { font-family: var(--font-display); font-size: 19px; font-weight: 500; line-height: 1.25; }
+.part ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 15px; color: var(--muted); }
+.part li { display: flex; gap: 10px; min-width: 0; }
+.part li.on { color: var(--ink); font-weight: 600; }
+.part .k { font-family: var(--font-num); font-size: 13px; width: 16px; flex: none; color: var(--accent); }
+.part .pf { margin-top: auto; font-size: 14px; font-weight: 600; color: var(--accent); }
+
+/* list rows (sections, sub-units) */
+.rows { display: flex; flex-direction: column; gap: 10px; }
+.row { display: flex; align-items: flex-start; gap: 14px; width: 100%; text-align: left; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; cursor: pointer; min-width: 0; }
+button.row:hover { border-color: var(--accent); }
+.row.off { cursor: default; opacity: .62; }
+.row .k { flex: none; min-width: 34px; font-family: var(--font-num); font-size: 15px; font-weight: 500; color: var(--accent); padding-top: 1px; }
+.row .rt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.row .rn { font-weight: 600; font-size: 18px; line-height: 1.3; }
+.row .rm { font-size: 15px; color: var(--muted); line-height: 1.45; }
+.row .rp { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; font-family: var(--font-num); font-size: 12.5px; color: var(--muted); white-space: nowrap; }
+.pill { font-family: var(--font-body); font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; padding: 3px 9px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); }
+.pill.soon { background: var(--line); color: var(--muted); }
+.rowx { position: relative; }
+.rowx:hover { border-color: var(--accent); }
+.rowx .hit { position: absolute; inset: 0; width: 100%; height: 100%; padding: 0; border: 0; border-radius: 10px; background: transparent; cursor: pointer; }
+.rowx .hit:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.rowx > .k, .rowx > .rt, .rowx > .rp { position: relative; pointer-events: none; }
+.stu { position: relative; z-index: 2; pointer-events: auto; display: inline-grid; place-items: center; width: 15px; height: 15px; margin: 0 0 0 8px; padding: 0; vertical-align: middle; border: 1.5px solid var(--muted); border-radius: 50%; background: transparent; color: transparent; cursor: pointer; }
+.stu svg { width: 9px; height: 9px; }
+.stu::after { content: ''; position: absolute; inset: -9px; }
+.stu:hover { border-color: var(--good); }
+.stu.on { background: var(--good); border-color: var(--good); color: var(--surface); }
+h1 .stu { width: 18px; height: 18px; margin-left: 10px; }
+h1 .stu svg { width: 11px; height: 11px; }
+.toast { position: absolute; z-index: 40; pointer-events: none; white-space: nowrap; background: var(--good); color: var(--surface); padding: 7px 12px; border-radius: 8px; font-size: 15px; font-weight: 600; line-height: 1.3; box-shadow: 0 6px 20px rgba(0, 0, 0, .25); opacity: 0; transition: opacity .15s ease; }
+.toast.off { background: var(--ink); color: var(--bg); }
+.toast.show { opacity: 1; }
+.toast[hidden] { display: none; }
+.chk { width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid var(--line); display: grid; place-items: center; font-size: 13px; color: transparent; }
+.chk.on { background: var(--good); border-color: var(--good); color: var(--surface); }
+.unitrow .mini { margin-top: 8px; display: flex; align-items: center; gap: 10px; font-family: var(--font-num); font-size: 12.5px; color: var(--muted); }
+.unitrow .mini .bar { flex: 1; max-width: 220px; }
+
+/* notes */
+.nhead { display: flex; flex-direction: column; gap: 10px; }
+.nhead h1 { margin-top: 0; }
+.toc { display: flex; flex-wrap: wrap; gap: 8px; }
+.toc button { background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px; font-size: 14px; cursor: pointer; color: var(--ink); }
+.toc button:hover { border-color: var(--accent); color: var(--accent); }
+.notes { display: flex; flex-direction: column; gap: 16px; }
+.notes .nh { font-size: 22px; font-weight: 700; margin-top: 12px; scroll-margin-top: 12px; }
+.notes p, .notes li { max-width: 68ch; }
+.notes ul, .notes ol { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 6px; }
+.notes strong { font-weight: 600; }
+.pm { display: flex; flex-direction: column; gap: 10px; }
+.more-btn { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; margin: -4px 0 -4px 4px; padding: 0; vertical-align: middle; border: 1.5px solid var(--accent); border-radius: 999px; background: var(--accent-soft); color: var(--accent); cursor: pointer; }
+.more-btn svg { transition: transform .15s ease; }
+.more-btn[aria-expanded="true"] svg { transform: rotate(90deg); }
+.more-btn:hover { background: var(--accent); color: var(--accent-ink); }
+.more { display: flex; flex-direction: column; gap: 10px; background: var(--accent-soft); border-left: 4px solid var(--accent); border-radius: 0 10px 10px 0; padding: 14px 16px; }
+.more[hidden] { display: none; }
+.fq { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 16px; font-weight: 600; font-size: 16px; }
+.fq .frac { display: inline-flex; flex-direction: column; align-items: stretch; text-align: center; }
+.fq .ft { padding: 0 10px 6px; border-bottom: 2px solid var(--ink); }
+.fq .fb { padding: 6px 10px 0; }
+.topicrow { align-items: center; }
+.topicrow .k { min-width: 40px; font-size: 17px; }
+.topicrow .rp { color: var(--accent); }
+.pt { position: relative; padding-left: 22px; }
+.pt::before { content: ''; position: absolute; left: 6px; top: .62em; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+@media (prefers-reduced-motion: reduce) { .more-btn svg { transition: none; } }
+.abbr { background: none; border: 0; padding: 0; margin: 0; font: inherit; line-height: inherit; color: inherit; cursor: pointer; border-bottom: 2px dotted var(--accent); }
+.abbr strong { font-weight: 700; }
+.abbr:hover, .abbr[aria-expanded="true"] { color: var(--accent); }
+.tip { position: absolute; z-index: 30; max-width: min(280px, calc(100vw - 32px)); background: var(--ink); color: var(--bg); padding: 8px 12px; border-radius: 8px; font-size: 15px; font-weight: 600; line-height: 1.35; box-shadow: 0 6px 20px rgba(0, 0, 0, .25); }
+.tip[hidden] { display: none; }
+
+.fm, .ex, .tbw, .terms, .trap, .recall { border: 1px solid var(--line); border-radius: 10px; background: var(--surface); min-width: 0; }
+.cap { font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: 9px 16px; background: var(--bg); border-bottom: 1px solid var(--line); border-radius: 10px 10px 0 0; }
+.fm .fr { display: flex; flex-direction: column; gap: 2px; padding: 10px 16px; border-bottom: 1px dotted var(--line); }
+.fm .fr:last-child { border-bottom: 0; }
+.fm .fl { font-weight: 600; font-size: 15px; }
+.fm .fx { font-family: var(--font-num); font-size: 14.5px; line-height: 1.6; overflow-wrap: anywhere; }
+.fm .fn { font-size: 14.5px; color: var(--muted); }
+
+.tbw { overflow: hidden; }
+.tbs { overflow-x: auto; }
+.tbw table { border-collapse: collapse; width: 100%; font-size: 15px; font-variant-numeric: tabular-nums; }
+.tbw th, .tbw td { text-align: left; vertical-align: top; padding: 9px 14px; border-bottom: 1px solid var(--line); min-width: 110px; }
+.tbw th { font-size: 12.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); background: var(--bg); white-space: nowrap; }
+.tbw tr:last-child td { border-bottom: 0; }
+.tbw .tc { font-size: 14px; color: var(--muted); padding: 8px 14px; border-top: 1px solid var(--line); }
+
+.ex { border-left: 4px solid var(--accent); display: flex; flex-direction: column; gap: 12px; padding: 14px 16px 16px; }
+.ex .exh { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+.ex .exh strong { font-family: var(--font-display); font-size: 17px; }
+.given { border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.given .cap { border-radius: 0; }
+.given dl { margin: 0; }
+.given .grow { display: flex; justify-content: space-between; gap: 16px; padding: 6px 14px; border-bottom: 1px dotted var(--line); }
+.given .grow:last-child { border-bottom: 0; }
+.given dt { min-width: 0; }
+.given dd { margin: 0; font-family: var(--font-num); font-variant-numeric: tabular-nums; text-align: right; overflow-wrap: anywhere; }
+.working { font-family: var(--font-num); font-size: 14.5px; line-height: 1.7; font-variant-numeric: tabular-nums; display: flex; flex-direction: column; overflow-x: auto; }
+.working .ln { white-space: nowrap; color: var(--muted); }
+.working .res { white-space: nowrap; color: var(--ink); font-weight: 500; align-self: flex-start; margin-top: 4px; padding-bottom: 2px; border-bottom: 4px double var(--ink); }
+.why { color: var(--muted); font-size: 16px; }
+
+.terms dl { margin: 0; }
+.terms .tr { display: grid; grid-template-columns: minmax(110px, 30%) minmax(0, 1fr); gap: 4px 16px; padding: 9px 16px; border-bottom: 1px dotted var(--line); }
+.terms .tr:last-child { border-bottom: 0; }
+.terms dt { font-weight: 600; font-size: 15px; }
+.terms dd { margin: 0; font-size: 15.5px; }
+
+.trap { background: var(--warn-soft); border-color: var(--warn); }
+.trap .cap, .recall .cap { background: transparent; border-bottom: 0; padding-bottom: 0; }
+.trap .cap { color: var(--warn); }
+.recall { background: var(--accent-soft); border-color: var(--accent); }
+.recall .cap { color: var(--accent); }
+.trap ul, .recall ul { margin: 0; padding: 6px 16px 14px 36px; display: flex; flex-direction: column; gap: 6px; }
+
+.pager { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 10px; }
+.pager .row .k { min-width: 0; }
+.pager .lbl { font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+
+/* quiz */
+.topbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 14px; color: var(--muted); }
+.topbar .count { font-family: var(--font-num); }
+.topbar .right { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.link { background: none; border: 0; color: var(--accent); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; padding: 4px; }
+.qtext { font-size: 19px; font-weight: 600; line-height: 1.45; }
+.options { display: flex; flex-direction: column; gap: 10px; }
+.opt { display: flex; align-items: flex-start; gap: 12px; text-align: left; width: 100%; background: var(--surface); border: 1.5px solid var(--line); border-radius: 8px; padding: 12px 14px; cursor: pointer; min-height: 48px; }
+.opt:hover:not([disabled]) { border-color: var(--accent); background: var(--accent-soft); }
+.opt .key { flex: none; width: 26px; height: 26px; border-radius: 6px; border: 1px solid var(--line); display: grid; place-items: center; font-family: var(--font-num); font-size: 13px; color: var(--muted); }
+.opt .txt { flex: 1; min-width: 0; padding-top: 1px; font-variant-numeric: tabular-nums; }
+.opt[disabled] { cursor: default; }
+.opt.correct { border-color: var(--good); background: var(--good-soft); }
+.opt.correct .key { background: var(--good); border-color: var(--good); color: var(--surface); }
+.opt.wrong { border-color: var(--bad); background: var(--bad-soft); }
+.opt.wrong .key { background: var(--bad); border-color: var(--bad); color: var(--surface); }
+.opt.dim { opacity: .6; }
+.explain { border-left: 4px solid var(--good); background: var(--surface); border-radius: 0 10px 10px 0; border-top: 1px solid var(--line); border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 16px 18px; display: flex; flex-direction: column; gap: 12px; }
+.explain.miss { border-left-color: var(--bad); }
+.verdict { font-family: var(--font-display); font-size: 18px; font-weight: 700; }
+.explain:not(.miss) .verdict { color: var(--good); }
+.explain.miss .verdict { color: var(--bad); }
+.score { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 16px; }
+.score .big { font-family: var(--font-display); font-size: clamp(44px, 12vw, 64px); font-weight: 700; line-height: 1; }
+.score .pct { font-family: var(--font-num); color: var(--muted); }
+.brk { display: flex; flex-direction: column; gap: 12px; }
+.brk .r { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; }
+.brk .r .sc { font-family: var(--font-num); font-size: 14px; }
+.brk .r .bar { grid-column: 1 / -1; }
+.brk .r.weak .bar i { background: var(--bad); }
+.brk .r.strong .bar i { background: var(--good); }
+.missed { display: flex; flex-direction: column; gap: 10px; }
+.missed .m { border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; }
+.missed .m .a { font-size: 15px; color: var(--muted); }
+.missed .m .a b { color: var(--good); font-weight: 600; }
+
+@media (prefers-reduced-motion: reduce) { .bar i { transition: none; } }
+@media (max-width: 520px) {
+  .panel { padding: 16px; }
+  .row { padding: 12px 14px; gap: 10px; }
+  .row .rp { display: none; }
+  .terms .tr { grid-template-columns: minmax(0, 1fr); }
+  .qtext { font-size: 18px; }
+}
+</style>
+
+<main class="wrap" id="app"></main>
+
+<script>
+(function () {
+  'use strict';
+  var META = {"parts":[{"n":1,"title":"Financial Planning, Performance and Analytics","sections":[{"id":"A","title":"External Financial Reporting Decisions","weight":15,"ready":false},{"id":"B","title":"Planning, Budgeting, and Forecasting","weight":20,"ready":false},{"id":"C","title":"Performance Management","weight":20,"ready":false},{"id":"D","title":"Cost Management","weight":15,"ready":false},{"id":"E","title":"Internal Controls","weight":15,"ready":false},{"id":"F","title":"Technology and Analytics","weight":15,"ready":false}]},{"n":2,"title":"Strategic Financial Management","sections":[{"id":"A","title":"Financial Statement Analysis","weight":20,"ready":true},{"id":"B","title":"Corporate Finance","weight":20,"ready":false},{"id":"C","title":"Decision Analysis","weight":25,"ready":false},{"id":"D","title":"Risk Management","weight":10,"ready":false},{"id":"E","title":"Investment Decisions","weight":10,"ready":false},{"id":"F","title":"Professional Ethics","weight":15,"ready":false}]}]};
+  var UNITS = [{"id":"A1","part":2,"section":"A","title":"Financial Ratios","blurb":"Liquidity, leverage, activity, profitability and market ratios, and how to use them."},{"id":"A2","part":2,"section":"A","title":"Profitability Analysis","blurb":"Measuring income, revenue and margin analysis, ROA, ROE and sustainable growth."},{"id":"A3","part":2,"section":"A","title":"Comparative Financial Statement Analysis","blurb":"Measures of income, comparative statements, vertical common-size statements and horizontal trend analysis."},{"id":"A4","part":2,"section":"A","title":"Special Issues","blurb":"Foreign exchange, inflation, accounting changes, valuation concepts and earnings quality."}];
+  var NOTES = [{"id":"A1.1","unit":"A1","title":"Introduction to Financial Ratio Analysis","summary":"What ratio analysis is for, who uses it, how a ratio gets its meaning, the four ratio groups on the exam, and the two rules for building a ratio: average balances and annualizing.","blocks":[{"t":"p","text":"A **financial ratio** divides one figure from the financial statements by another to show how the two relate. One ratio on its own says little, but a set of ratios, watched over time or set against a benchmark, shows whether a company is getting stronger or weaker. Ratios that keep turning less favorable can show trouble before it is obvious elsewhere, which is why they work as an early warning."},{"t":"h","text":"Who uses ratios and what each wants to know"},{"t":"p","text":"The final purpose of ratio analysis is to judge **risk and return**. Different users need different answers, so they look at different ratios."},{"t":"table","head":["User","Main question","Ratio groups they lean on"],"rows":[["Short-term creditors (banks, trade suppliers)","Can the company pay what it owes as it falls due in the near term?","Liquidity and activity ratios"],["Long-term creditors (bondholders)","Can the company meet interest and repay principal over the long run?","Leverage, capital structure, solvency and coverage ratios"],["Equity investors (existing and potential)","How strong and lasting is the company's earning power?","Profitability and per-share ratios, and also the risk ratios"],["Analysts (security analysts, advisers, newsletters, debt raters)","Should a stock or bond be bought, held or sold?","All groups"]]},{"t":"p","text":"Both kinds of creditor want assurance that the company has the resources to pay interest and principal. Equity investors need the deeper analysis. They carry the **residual risk**: if the company fails, their claim is paid only after suppliers and lenders have been paid in full."},{"t":"p","text":"Analysts gather and interpret information about the prospects of companies for decision makers. Some work inside investment companies and pension funds, and their work is for internal use. Others publish recommendations to the public or sell them privately to clients for a fee."},{"t":"terms","items":[["Liquidity","The ability to pay short-term obligations as they come due."],["Solvency","The ability to pay long-term obligations, including interest and principal, as they come due."],["Earning power","The ability of the company to keep generating profit over the long term."],["Residual claim","The ownership claim that is settled last, after all creditors."]]},{"t":"h","text":"Giving a ratio meaning"},{"t":"p","text":"A calculated ratio is only a number. It becomes useful when it is compared with something. There are three standard comparisons."},{"t":"table","head":["Comparison","What it shows","Care needed"],"rows":[["Trend: the same company over time","Whether each ratio is improving or worsening. Ratios that keep turning less favorable can signal future financial difficulty before it is visible elsewhere.","One-off events and accounting changes can break the trend."],["Industry: other companies or the industry average","Competitive position. A company whose ratios are weaker than its industry will struggle to compete in its market.","Adjust the statements first so that they are comparable (accounting policies, year-ends, mix of businesses)."],["Management expectations: budget or targets","Whether results match the plan.","The comparison is only as good as the budget."]]},{"t":"h","text":"The four ratio groups on the exam"},{"t":"table","head":["Group","What it measures"],"rows":[["Liquidity ratios","Whether cash resources are enough to meet short-term cash obligations."],["Leverage, capital structure, solvency and earnings coverage ratios","Ability to satisfy fixed financing charges, such as debt payments and lease payments, judged from the mix of financing and from past earnings."],["Activity ratios","How efficiently the company manages current assets (receivables and inventory) and current liabilities (payables)."],["Profitability ratios","Per-share ratios, such as earnings per share and the other measures of profit and condition per share of stock, and company profitability ratios, which relate gross profit and net income to sales and to the assets invested."]]},{"t":"p","text":"The ratio definitions used in this guide follow the form in which the ICMA presents its financial ratio summary, which is how the exam tests them. When an exam question gives its own definition of a ratio, use the definition in the question."},{"t":"h","text":"A limit that applies to every ratio"},{"t":"p","text":"Ratios are built from accounting data, and much of that data is recorded at historical cost instead of current fair value. A ratio therefore describes the recorded amounts. It may not reflect what the items are worth today."},{"t":"h","text":"Two rules for building a ratio"},{"t":"p","text":"**Rule 1: use average balances when an income statement amount is related to a balance sheet amount.** An income statement amount covers a stretch of time, but a balance sheet amount is a snapshot of one moment. Averaging the beginning and ending balance of the same period gives a balance that represents that stretch, so the two figures can be compared meaningfully. If both the numerator and the denominator come from the balance sheet, year-end balances can be used for both."},{"t":"formula","title":"Average balance rule","rows":[["Average balance","(Beginning balance + Ending balance) ÷ 2"],["Income statement amount ÷ balance sheet amount","Use the average balance of the same period","For example net income ÷ average total assets."],["Balance sheet amount ÷ balance sheet amount","Year-end balances are acceptable for both","For example current assets ÷ current liabilities."]]},{"t":"p","text":"**Rule 2: annualize an income statement amount that covers less than one year.** The aim is to state the amount as if that same level of revenue or expense had continued for a full year. The balance sheet average in the same ratio then covers only the partial period, never a full year."},{"t":"table","head":["Income statement amount covers","How to annualize"],"rows":[["One quarter","Multiply by 4"],["One month","Multiply by 12"],["A number of months (for example five)","Divide by the number of months, then multiply by 12"],["A number of days (for example 54)","Divide by the number of days, then multiply by 365"]],"caption":"This guide uses a 365-day year. If an exam question states a different day count, use the one given."},{"t":"example","title":"Average balance against year-end balance","given":[["Net income for the year","360,000"],["Total assets, beginning of year","2,000,000"],["Total assets, end of year","2,400,000"],["Current assets, end of year","900,000"],["Current liabilities, end of year","600,000"]],"steps":["Average total assets = (2,000,000 + 2,400,000) ÷ 2 = 2,200,000","Return on assets = 360,000 ÷ 2,200,000 = 16.4% (correct, average balance)","Using the year-end balance gives 360,000 ÷ 2,400,000 = 15.0%, which understates the return because assets grew during the year","Current ratio = 900,000 ÷ 600,000 = 1.50, with year-end balances because both amounts are balance sheet amounts"],"result":"ROA = 16.4% on average assets; current ratio = 1.50 on year-end balances"},{"t":"example","title":"Annualizing a quarter and a five-month period","given":[["Net income for one quarter","90,000"],["Operating income for five months","175,000"]],"steps":["Quarter: 90,000 × 4 = 360,000 for a full year","Five months: 175,000 ÷ 5 = 35,000 per month","Annualized: 35,000 × 12 = 420,000"],"result":"Annualized net income = 360,000; annualized operating income = 420,000"},{"t":"example","title":"Return on assets for a 54-day period","given":[["Net income for the 54 days","81,000"],["Total assets at the start of the 54 days","3,000,000"],["Total assets at the end of the 54 days","3,300,000"]],"steps":["Net income per day = 81,000 ÷ 54 = 1,500","Annualized net income = 1,500 × 365 = 547,500","Average total assets for the 54 days only = (3,000,000 + 3,300,000) ÷ 2 = 3,150,000","Return on assets = 547,500 ÷ 3,150,000 = 17.4%"],"result":"Annualized return on assets = 17.4%","note":"The average of the assets uses only the two balances that bracket the 54 days, not a full-year average."},{"t":"trap","items":["Dividing an income statement amount by an ending balance sheet amount. The rule is the average balance of the same period.","Applying the wrong annualizing factor, for example multiplying four months of income by 4 as if it were a quarter. Four months needs a factor of 3.","Annualizing the income but then using a full-year average for the balance sheet item. Use the balances of the partial period.","Averaging balance sheet items for a ratio where both parts are balance sheet amounts. Year-end balances are fine there.","Calling a ratio good or bad without a comparison base such as a prior year, a peer or the budget."]},{"t":"recall","items":["Ratios relate one statement figure to another, to judge risk and return.","Short-term creditors ask about liquidity, bondholders about solvency, equity investors about earning power.","Give a ratio meaning by trend, by industry comparison or by comparison with the budget.","Exam groups: liquidity, leverage and coverage, activity, profitability.","Income statement ÷ balance sheet: average balance. Balance sheet ÷ balance sheet: year-end balances.","Partial-year income: quarter × 4, month × 12, months ÷ n × 12, days ÷ n × 365."]}]},{"id":"A1.2","unit":"A1","title":"Liquidity Ratios","summary":"It refers to a firm's ability to meet its short-term obligations using short-term assets that can be easily converted into cash.","more":["A company has the ability to pay off its short-term obligations (such as debts and bills that need to be repaid within a year) on time.","This is made possible by using (short-term assets & current assets).","The special feature of these assets is that they can be easily converted into cash (for example: cash in hand, bank balance, inventories that can be quickly sold for cash, and the amount to be received from customers, which is Accounts Receivable)."],"blocks":[{"t":"h","text":"Net Working Capital"},{"t":"p","point":true,"text":"Net Working Capital is the difference between current assets and current liabilities."},{"t":"formula","title":"","rows":[["Net Working Capital = [[Total CA|Total Current Asset]] - [[Total CL|Total Current Liability]]"]]},{"t":"p","point":true,"text":"It bridges the gap between the production process and the collection of cash from sales.","more":["Net Working Capital helps a business continue its daily operations during the time gap between starting production and cash collection."]},{"t":"p","point":true,"text":"The liquidity needed depends on the length of the operating cycle, which involves raw material purchase, sales, credit extension, and cash collection.","more":["As the length of the operating cycle increases, cash blockage increases, leading to a higher liquidity requirement. Conversely, as the operating cycle shortens, the liquidity requirement decreases.","(A long operating cycle applies to companies that take a lot of time to manufacture products—for example, shipbuilders or heavy machinery manufacturing companies. On the other hand, a low liquidity requirement applies to businesses with a very short operating cycle, such as bakeries or supermarkets. Since cash is recovered quickly, maintaining just enough liquidity on hand is sufficient.)"]}],"topics":[{"title":"Current Ratio","blocks":[{"t":"fraction","left":"Current Ratio =","top":"Current Asset","bottom":"Current Liability"},{"t":"p","point":true,"text":"This is the most commonly used measure of liquidity."}]},{"title":"Quick Ratio","blocks":[]},{"title":"Cash Ratio","blocks":[]},{"title":"Operating Cash Flow Ratio","blocks":[]},{"title":"Working Capital Ratio","blocks":[]}]},{"id":"A3.1","unit":"A3","title":"Measures of Income","summary":"Learn how operating income, income from continuing operations, EBIT, EBT and net income differ, and how to move from one to another.","blocks":[{"t":"p","text":"[[EBIT|Earnings Before Interest and Taxes]] and [[EBT|Earnings Before Taxes]] are frequently used in financial analysis, though not in published income statements."},{"t":"h","text":"How the measures differ"},{"t":"ul","items":["**Operating income** covers the core business only: revenues less cost of goods sold and operating expenses. It leaves out interest and dividend income, interest expense, non-operating gains and losses, and income taxes.","**Income from continuing operations** is wider. It includes financial income and expense, non-operating gains and losses and the tax on continuing operations, but not discontinued operations. It is not the same thing as operating income.","**EBIT** is a calculated figure: net income with interest expense and income taxes added back. It still includes interest and dividend income and non-operating gains and losses. In the usual CMA textbook treatment it also includes the pre-tax result of discontinued operations.","**EBT** is EBIT less interest expense."]},{"t":"formula","title":"Moving between the measures","rows":[["EBIT","Operating income + interest and dividend income ± non-operating gains and losses ± pre-tax result of discontinued operations"],["EBT","EBIT − Interest expense"],["Net income","EBT − Total income tax expense","Total tax includes the tax effect of any discontinued operations."],["EBIT, worked backward","Net income + Income tax expense + Interest expense"]]},{"t":"h","text":"Exam judgment"},{"t":"p","text":"Operating income equals EBIT only when the statement has no interest or dividend income, no non-operating gains or losses and no discontinued operations. Many exam questions contain none of these, so the two figures are used interchangeably. When a question does list such items, build EBIT line by line. An analyst may choose to leave non-operating items out of EBIT to get a cleaner view of the core business. Interest earned on credit given to customers is different: it belongs in EBIT."},{"t":"example","title":"From operating income to net income","given":[["Revenues","8,000,000"],["Cost of goods sold","4,800,000"],["SG&A expenses","1,900,000"],["Interest and dividend income","60,000"],["Loss on sale of investments","90,000"],["Interest expense","220,000"],["Tax rate on continuing operations","30%"]],"steps":["Operating income = 8,000,000 − 4,800,000 − 1,900,000 = 1,300,000","EBIT = 1,300,000 + 60,000 − 90,000 = 1,270,000","EBT = 1,270,000 − 220,000 = 1,050,000","Tax at 30% = 315,000, so income from continuing operations = 735,000"],"result":"EBIT 1,270,000 and EBT 1,050,000, against operating income of 1,300,000","note":"EBIT is lower than operating income here because the investment loss is larger than the interest and dividend income."},{"t":"example","title":"Adding a discontinued operation","given":[["Same company as the first example","plus a discontinued component"],["Pre-tax loss on the component","150,000"],["Tax benefit on that loss","45,000"]],"steps":["EBIT = 1,270,000 − 150,000 = 1,120,000","EBT = 1,120,000 − 220,000 = 900,000","Discontinued operations, net of tax = −150,000 + 45,000 = −105,000","Net income = 735,000 − 105,000 = 630,000","Check: EBT − total tax = 900,000 − (315,000 − 45,000) = 630,000"],"result":"EBIT 1,120,000, EBT 900,000, net income 630,000"},{"t":"terms","items":[["Operating income","Profit from the core business, before financial items, non-operating items and taxes."],["Income from continuing operations","Profit from activities expected to continue, after financial items and taxes, before discontinued operations."],["EBIT","Net income plus interest expense plus income taxes."],["EBT","EBIT less interest expense, which is income before income taxes."],["Non-operating items","Gains and losses from investments, acquisitions and similar activities outside the core business."]]},{"t":"trap","items":["Treating operating income and income from continuing operations as the same thing.","Starting from operating income and forgetting to add interest income and non-operating gains when asked for EBIT.","Subtracting interest expense from operating income and calling the result EBIT. Interest expense comes off after EBIT, to reach EBT.","Adding back only interest when working backward from net income. Income taxes must be added back too."]},{"t":"recall","items":["Operating income is core-business profit only.","EBIT adds interest and dividend income and non-operating items to operating income.","EBT = EBIT − interest expense.","EBIT = net income + income taxes + interest expense.","With no unusual items, operating income and EBIT are interchangeable on the exam."]}]},{"id":"A3.2","unit":"A3","title":"Comparative Financial Statement Analysis","summary":"Why raw dollar amounts cannot be compared across companies or years, what vertical and horizontal analysis do about it, and where benchmark data comes from.","blocks":[{"t":"p","text":"Comparing financial statements is hard when the entities differ in size. A bigger company earns more net income simply because it is bigger, not because it is better run. The same problem appears within one company: a year of strong sales growth makes the next year's dollar figures hard to compare with the last. **Comparative financial statement analysis** deals with this by stating items as percentages of a relevant base instead of as dollar amounts."},{"t":"table","head":["","Vertical analysis","Horizontal analysis"],"rows":[["Other name","Common-size statements","Trend analysis, common base year statements"],["Direction of reading","Down one period's statement","Across several periods"],["Base","A total in the same statement, such as net sales or total assets","The same line item in a base year, or in the previous year"],["Compares","Companies of different size in the same period, or one company's structure over time","One company, or one industry, year over year"],["Main output","Percentage of sales or of total assets","Index numbers and annual growth rates"]]},{"t":"h","text":"What the analyst can do with it"},{"t":"ul","items":["**Compare firms of different size** in the same period through common-size statements.","**Follow one firm over time** by placing several years of common-size statements side by side, or by calculating index numbers and growth rates.","**Benchmark against an industry.** A firm's common-size statement can be set against industry common-size statements to find lines that are out of line.","**Raise questions.** The analysis points to where to look. It does not explain causes by itself."]},{"t":"h","text":"The base is flexible"},{"t":"p","text":"Income statement items are usually stated as a percentage of sales revenue and balance sheet items as a percentage of total assets. These are the standard bases, but a common-size statement can use any total that suits the question. An analyst studying inventory can state raw materials, work in process and finished goods as percentages of total inventory. A study of operating costs can state selling expenses and administrative expenses as percentages of total operating expenses. A study of investments can show each category as a percentage of total investments."},{"t":"h","text":"Sources of comparison data"},{"t":"ul","items":["**RMA Annual Statement Studies.** Published by the Risk Management Association, a bankers' trade association. It is built from the statements of small and medium-size customers of member banks, covers a large number of industries and is split by asset size and sales size, so a firm can be compared with similar-sized businesses.","**Dun & Bradstreet Key Business Ratios.** Industry benchmarks compiled from Dun & Bradstreet's database of public and private companies, including common-size statements and a set of key ratios.","**SEC filings.** For companies that report to the U.S. Securities and Exchange Commission, annual and quarterly reports are available free of charge on the SEC website. Many sites also provide public-company data in a ready-to-analyze form."]},{"t":"p","text":"Far more information is available for public companies than for nonpublic ones, and the industry publications above hold mostly nonpublic company data."},{"t":"example","title":"Comparing a cost line with the industry","given":[["Net sales","20,000,000"],["Cost of goods sold","14,200,000"],["Industry cost of goods sold, % of sales","64.0%"]],"steps":["Company cost of goods sold = 14,200,000 ÷ 20,000,000 = 71.0%","Gap to the industry = 71.0% − 64.0% = 7.0 percentage points","Dollar value of the gap = 7.0% × 20,000,000"],"result":"About 1,400,000 more cost than the industry norm","note":"A gap like this is a prompt for questions: purchasing prices, selling prices, product mix, inventory losses or theft."},{"t":"trap","items":["Mixing up the two types: vertical analysis compares within one period, horizontal analysis compares across periods.","Assuming the base must always be sales or total assets. Other totals can be used when the question defines them.","Treating a gap against the industry as an explanation. It only shows where to investigate."]},{"t":"recall","items":["Size differences make dollar amounts hard to compare, so items are stated as percentages of a base.","Vertical = common-size, within one period. Horizontal = trend, across periods.","Standard bases: sales for the income statement, total assets for the balance sheet.","Industry benchmarks: RMA Annual Statement Studies and D&B Key Business Ratios. Public company filings: SEC website."]}]},{"id":"A3.3","unit":"A3","title":"Vertical Common-Size Financial Statements","summary":"Express every line of a statement as a percentage of one base figure, so companies of different size and different years can be compared on the same scale.","blocks":[{"t":"p","text":"A **common-size statement** restates each line as a percentage of one base amount taken from the same statement. The dollar amounts disappear and the structure of the business is left: how much of each sales dollar goes to cost of goods sold, and how much of each asset dollar is financed by debt. Because the analysis reads down a single column, it is called **vertical analysis**."},{"t":"h","text":"Choosing the base"},{"t":"table","head":["Statement","Usual base (100%)","What each line then shows"],"rows":[["Income statement","Net sales (revenue)","Cost, expense or profit per $1.00 of sales"],["Balance sheet","Total assets, which equals total liabilities plus equity","Share of the asset base, or of total financing"],["A part of a statement","Any relevant total, for example total inventory or total operating expenses","Composition of that group of items"]],"caption":"Use net sales, which is after returns, allowances and discounts. Other bases are fine when the question names them."},{"t":"formula","title":"Common-size formulas","rows":[["Income statement line","(Line item ÷ Net sales) × 100"],["Balance sheet line","(Line item ÷ Total assets) × 100"],["Check","Net sales = 100.0%. Total assets = 100.0% = Total liabilities + equity.","Net income as a percent of sales equals 100% minus all the expense percentages and the tax percentage."]]},{"t":"h","text":"Why analysts use it"},{"t":"ul","items":["**Size-neutral comparison.** A $5 million company and a $500 million company can be compared line by line in the same period.","**Change in structure over time.** Several years of common-size statements side by side show which costs are taking a larger or smaller share of sales.","**Benchmarking.** Industry common-size statements let a company be set against its peers (see A3.2 for the sources).","**Capital structure at a glance.** The lower half of a common-size balance sheet shows how much financing comes from current liabilities, long-term debt and equity."]},{"t":"h","text":"Reading the results"},{"t":"p","text":"Look at changes in the mix, not only at the levels. Each of these patterns points to a question worth asking:"},{"t":"ul","items":["Cost of goods sold rising as a percentage of sales, so gross margin is shrinking: input costs are up, or prices were cut.","SG&A rising as a percentage of sales: overhead is growing faster than revenue.","Interest expense rising as a percentage of sales: the debt burden is heavier.","Receivables or inventory rising as a percentage of total assets: more capital is tied up in working capital, which may signal slow collection or weak demand.","Debt rising as a percentage of total financing: more of the business is funded by creditors, so financial risk is higher."]},{"t":"example","title":"Common-size income statement, two years","given":[["Net sales, 2025 and 2026","4,000,000 and 4,500,000"],["Cost of goods sold","2,400,000 and 2,925,000"],["SG&A","800,000 and 855,000"],["Interest expense","100,000 and 135,000"],["Tax rate","30% in both years"]],"steps":["Base: net sales in each year = 100.0%","Cost of goods sold: 60.0% in 2025, 65.0% in 2026","Gross profit: 1,600,000 = 40.0%, then 1,575,000 = 35.0%","SG&A: 20.0%, then 19.0%","Operating income: 800,000 = 20.0%, then 720,000 = 16.0%","Interest: 2.5%, then 3.0%","Net income after 30% tax: 490,000 = 12.25%, then 409,500 = 9.10%"],"result":"Net margin fell from 12.25% to 9.10% although sales grew 12.5%","note":"Gross margin fell 5.0 points and interest took a bigger share. SG&A improved by 1.0 point, which only partly offset this. Net income fell 16.4% in dollars even though sales rose."},{"t":"example","title":"Common-size balance sheet","given":[["Cash","250,000"],["Receivables","750,000"],["Inventory","1,250,000"],["Property, plant and equipment, net","2,750,000"],["Current liabilities","900,000"],["Long-term debt","1,600,000"],["Shareholders' equity","2,500,000"]],"steps":["Total assets = 250,000 + 750,000 + 1,250,000 + 2,750,000 = 5,000,000","Assets: cash 5.0%, receivables 15.0%, inventory 25.0%, net PP&E 55.0%","Financing: current liabilities 18.0%, long-term debt 32.0%, equity 50.0%"],"result":"Both sides total 100.0%; half of the financing comes from creditors"},{"t":"h","text":"Limitations"},{"t":"ul","items":["Percentages hide absolute size. A line can fall as a percentage of sales while its dollar amount rises, if sales grow faster.","Companies must use similar accounting policies and statement layouts before their percentages can be compared.","One year says little. Use several years or an industry benchmark.","On a balance sheet the base is total assets, so one large new asset lowers every other line's percentage even though nothing else changed."]},{"t":"terms","items":[["Vertical analysis","Reading one period's statement down the page, with each line shown as a percentage of one base."],["Common-size statement","A statement in which every line is shown as a percentage of the base figure."],["Base figure","The amount set at 100%: net sales for the income statement, total assets for the balance sheet."]]},{"t":"trap","items":["Using total assets as the base for the income statement, or net sales as the base for the balance sheet.","Using gross sales when net sales is the correct base.","Treating a falling percentage as a falling dollar amount. A cost can shrink as a share of sales while its dollars rise.","Skipping the check that the statement ends at 100.0% on its base line."]},{"t":"recall","items":["Vertical analysis means each line ÷ one base, within the same statement.","Income statement base is net sales. Balance sheet base is total assets.","Removing size lets different firms and different years be compared.","Read changes in mix: gross margin, SG&A share, interest share, debt share.","A percentage can fall while the dollar amount rises, and the reverse."]}]},{"id":"A3.4","unit":"A3","title":"Horizontal Trend Analysis","summary":"Compare periods with index numbers and growth rates, work out compound annual growth, and read the direction and speed of a trend.","blocks":[{"t":"p","text":"**Horizontal trend analysis** studies one business, or one industry, across several years. On the income statement, changes in revenues and expenses can show whether a pricing change or an efficiency drive worked. On the balance sheet, changes in assets and liabilities show how liquidity and solvency are moving. It takes two forms."},{"t":"table","head":["Form","Also called","What it shows"],"rows":[["Index number analysis","Common base year statements","Each year as a percentage of the base year. The base year is set to 100."],["Variation analysis","Annual growth rates","Each year's percentage change from the previous year."]]},{"t":"formula","title":"Horizontal analysis formulas","rows":[["Index number","Current-year line item ÷ Base-year line item × 100","The base year is normally the first year presented. Base year = 100."],["Annual growth rate","(Current-year line item ÷ Previous-year line item) − 1, × 100","Equivalent to (Current − Previous) ÷ Previous × 100."],["Dollar change","Current-period amount − Base-period amount"]]},{"t":"example","title":"Index numbers against growth rates","given":[["Net revenues, year 1","6,000"],["Net revenues, year 2","6,900"],["Net revenues, year 3","6,210"]],"steps":["Index, year 1 as base: 100.0, 115.0, 103.5","Year 2 growth = 6,900 ÷ 6,000 − 1 = +15.0%","Year 3 growth = 6,210 ÷ 6,900 − 1 = -10.0%"],"result":"Index 100.0, 115.0, 103.5. Growth +15.0%, then −10.0%","note":"The index always compares with year 1. The growth rate always compares with the year before. A fall of 10% from year 2 leaves revenue only 3.5% above year 1."},{"t":"p","text":"Statements are sometimes printed with the most recent year in the first column. Check the column order before choosing which year is the base or the previous year."},{"t":"h","text":"What to compare"},{"t":"ul","items":["**Related lines against each other.** If sales grew 12.5% and cost of goods sold grew 18.1%, gross margin must have fallen.","**Working capital against sales.** Receivables or inventory growing faster than sales can mean slow collection or slow-moving stock.","**Expenses against revenue.** Expenses growing more slowly than sales point to operating leverage. Faster growth points to cost pressure.","**Sources of financing.** On the balance sheet, ask whether asset growth was funded by new debt, new equity or retained earnings.","**Unusual movements.** A large change often has a one-off cause such as an acquisition, a disposal or an accounting change."]},{"t":"p","text":"Horizontal analysis shows what moved. Vertical (common-size) analysis shows how the mix changed as a result. Analysts normally use both. A cost line can grow 20% and still take a smaller share of sales if revenue grew faster."},{"t":"example","title":"Comparative income statement","given":[["Sales, 2025 and 2026","3,200,000 and 3,600,000"],["Cost of goods sold","1,920,000 and 2,268,000"],["Operating expenses","640,000 and 672,000"]],"steps":["Sales: +400,000 ÷ 3,200,000 = +12.5%","Cost of goods sold: +348,000 ÷ 1,920,000 = +18.1%","Gross profit: 1,280,000 to 1,332,000, +52,000 ÷ 1,280,000 = +4.1%","Operating expenses: +32,000 ÷ 640,000 = +5.0%","Operating income: 640,000 to 660,000, +20,000 ÷ 640,000 = +3.1%","Gross margin: 40.0% to 37.0%","Operating margin: 20.0% to 18.3%"],"result":"Sales grew 12.5% but operating income only 3.1%, because cost of goods sold grew faster than sales","note":"Operating expenses grew more slowly than sales (5.0% against 12.5%), which softened the effect."},{"t":"h","text":"Awkward cases"},{"t":"ul","items":["**Zero base.** A percentage change cannot be calculated. Describe the change in dollars.","**Negative base.** A move from a loss of 200,000 to a profit of 100,000 is a 300,000 improvement, but a percentage change from a negative base has no useful meaning. Use the dollar change.","**Small base.** A rise from 2,000 to 6,000 is +200% and may still be immaterial.","**Percentage points.** The change between two percentages, such as margins, is stated in percentage points. A margin falling from 40.0% to 37.0% is a 3.0 percentage-point fall, which is a 7.5% relative decline."]},{"t":"h","text":"Compound growth over several years"},{"t":"formula","title":"Growth formulas","rows":[["Compound annual growth rate (CAGR)","(Ending value ÷ Beginning value)^(1 ÷ n) − 1","n is the number of years between the two values, not the number of data points."],["Value after growth","Beginning value × (1 + CAGR)^n"],["Arithmetic average growth","Sum of the yearly growth rates ÷ number of rates","Ignores compounding. It overstates the true average when growth is uneven."]]},{"t":"example","title":"Five-year revenue trend","given":[["Revenue 2022","4,000,000"],["Revenue 2023","4,360,000"],["Revenue 2024","4,800,000"],["Revenue 2025","5,100,000"],["Revenue 2026","5,600,000"]],"steps":["Yearly growth: 2023 9.0%, 2024 10.1%, 2025 6.3%, 2026 9.8%","Index with 2022 = 100: 100.0, 109.0, 120.0, 127.5, 140.0","n = 2026 − 2022 = 4 years (five data points, four intervals)","CAGR = (5,600,000 ÷ 4,000,000)^(1 ÷ 4) − 1 = 1.4^0.25 − 1 = 8.8%"],"result":"Revenue index of 140.0 in 2026; compound growth of 8.8% a year","note":"Growth was uneven. 2025 was the weak year at 6.3%."},{"t":"h","text":"Why CAGR is preferred to the simple average"},{"t":"p","text":"The arithmetic average of yearly growth rates ignores the fact that each year's growth is applied to a different base. When growth swings up and down, the simple average can even have the wrong sign."},{"t":"example","title":"Average growth that misleads","given":[["Revenue, year 0","100"],["Revenue, year 1","150"],["Revenue, year 2","90"]],"steps":["Year 1 growth = (150 − 100) ÷ 100 = +50.0%","Year 2 growth = (90 − 150) ÷ 150 = −40.0%","Arithmetic average = (50.0% − 40.0%) ÷ 2 = +5.0% a year","CAGR = (90 ÷ 100)^(1 ÷ 2) − 1 = −5.1% a year"],"result":"Revenue ended 10% below its start, so the true annual rate is negative"},{"t":"h","text":"What a trend analysis looks for"},{"t":"ul","items":["**Direction, speed and stability.** Rising or falling, accelerating or slowing, steady or volatile.","**Turning points.** The year a margin stopped falling or a growth rate started to slow.","**Related lines moving together.** Sales, receivables, inventory and costs should move in step. If they do not, find out why.","**Seasonality.** In a seasonal business compare a quarter with the same quarter a year earlier, or use a trailing twelve-month figure.","**One-off items.** Restructuring charges, disposals and large acquisitions should be isolated before a trend is read."]},{"t":"h","text":"Pitfalls"},{"t":"ul","items":["**Base-year effects.** An unusually weak base year makes later indexes look strong. Choose a typical year as the base.","**Small bases.** A 300% rise from a tiny amount may not matter.","**Inflation.** Nominal growth overstates real growth when prices have risen. Adjust with a price index for long comparisons.","**Broken comparability.** Acquisitions, disposals and accounting changes make years incomparable unless figures are restated.","**Few data points.** Extending a line drawn through three points is unreliable.","**Dollars against percent.** A growth rate can slow while the dollar increase stays the same or grows."]},{"t":"terms","items":[["Horizontal analysis","Comparing the same line items across periods."],["Index number","A line item as a percentage of its base-year amount, with the base year at 100."],["Variation analysis","A presentation of annual growth rates of line items."],["CAGR","The constant yearly growth rate that takes a beginning value to an ending value over n years."],["Seasonality","A pattern that repeats each year, so a period should be compared with the same period a year earlier."]]},{"t":"trap","items":["Dividing the change by the later period instead of the earlier base period.","Reading an index of 125 as a 125% increase. The index is the level, and the increase is 25%.","Mixing up percentage points and percent when a margin or ratio changes.","Calculating a percentage change from a zero or negative base.","Using the wrong base year because the most recent year was printed first.","Using n equal to the number of years listed. For 2022 to 2026, n is 4, not 5.","Averaging yearly growth rates and calling the result CAGR.","Comparing a seasonal quarter with the previous quarter instead of the same quarter a year earlier.","Treating nominal growth as real growth when prices have risen sharply."]},{"t":"recall","items":["Horizontal trend analysis has two forms: index numbers (base year = 100) and variation analysis (annual growth rates).","Index = current ÷ base year × 100, so an index of 125 means +25%.","Growth rate = current ÷ previous − 1.","Compare the growth rates of related lines to find margin and working-capital signals.","Use dollar change when the base is zero or negative.","Changes in margins are stated in percentage points.","CAGR = (End ÷ Start)^(1 ÷ n) − 1, with n counting intervals.","The arithmetic average of growth rates overstates the true rate when growth is uneven."]}]}];
+  var QUESTIONS = [{"sub":"A1.4","q":"Using a 365-day year, what is the days' inventory outstanding?","data":[["Sales","1,800,000"],["Cost of goods sold","1,200,000"],["Beginning inventory","180,000"],["Ending inventory","220,000"]],"options":["41 days","61 days","67 days","73 days"],"answer":1,"steps":["Average inventory = (180,000 + 220,000) ÷ 2 = 200,000","Inventory turnover = COGS ÷ average inventory","= 1,200,000 ÷ 200,000 = 6.0 times","Days' inventory outstanding = 365 ÷ turnover"],"result":"365 ÷ 6.0 = 60.8, about 61 days","why":"41 days uses sales instead of COGS (1,800,000 ÷ 200,000 = 9.0 turns). 67 days uses ending inventory only (1,200,000 ÷ 220,000 = 5.45 turns). 73 days matches no correct method here."},{"sub":"A1.4","q":"Days' sales outstanding is 45 days, days' inventory outstanding is 60 days and days' payables outstanding is 35 days. What is the cash conversion cycle?","options":["50 days","70 days","105 days","140 days"],"answer":1,"steps":["Cash conversion cycle = DIO + DSO − DPO"],"result":"60 + 45 − 35 = 70 days","why":"105 days forgets to subtract payables. 140 days adds payables instead of subtracting them. 50 days (60 + 35 − 45) mixes up which period is subtracted."},{"sub":"A1.3","q":"A company has total assets of $5,000,000 and total liabilities of $3,000,000. What is its debt-to-equity ratio?","options":["0.60","0.67","1.50","2.50"],"answer":2,"steps":["Equity = total assets − total liabilities","= 5,000,000 − 3,000,000 = 2,000,000","Debt-to-equity = total liabilities ÷ equity"],"result":"3,000,000 ÷ 2,000,000 = 1.50","why":"0.60 is the debt ratio (liabilities ÷ assets). 0.67 turns the ratio upside down (equity ÷ liabilities). 2.50 is the equity multiplier (assets ÷ equity)."},{"sub":"A1.3","q":"Net income is $420,000, interest expense is $100,000 and the tax rate is 30%. What is the times-interest-earned ratio?","options":["4.2","5.2","6.0","7.0"],"answer":3,"steps":["Pre-tax income = net income ÷ (1 − tax rate)","= 420,000 ÷ 0.70 = 600,000","EBIT = pre-tax income + interest = 600,000 + 100,000 = 700,000"],"result":"TIE = 700,000 ÷ 100,000 = 7.0","why":"The numerator is EBIT, before interest and tax. 4.2 uses net income. 5.2 uses net income plus interest. 6.0 uses pre-tax income."},{"sub":"A1.8","q":"A company reports sales of $5,000,000, cost of goods sold of $3,250,000, operating expenses of $1,000,000 and interest expense of $150,000. The tax rate is 30%. What is the net profit margin?","options":["8.4%","12.0%","15.0%","35.0%"],"answer":0,"steps":["Gross profit = 5,000,000 − 3,250,000 = 1,750,000","Operating income = 1,750,000 − 1,000,000 = 750,000","Pre-tax income = 750,000 − 150,000 = 600,000","Net income = 600,000 × (1 − 0.30) = 420,000"],"result":"420,000 ÷ 5,000,000 = 8.4%","why":"35.0% is the gross margin, 15.0% the operating margin and 12.0% the pre-tax margin. Net margin is measured after interest and tax."},{"sub":"A2.1","q":"A firm has a net profit margin of 6%, total asset turnover of 2.0 times and an equity multiplier of 1.8. Using the DuPont model, what is its return on equity?","options":["3.3%","10.8%","12.0%","21.6%"],"answer":3,"steps":["ROE = net profit margin × total asset turnover × equity multiplier","= 6% × 2.0 × 1.8"],"result":"ROE = 21.6%","why":"12.0% is only the return on assets (6% × 2.0). 10.8% leaves out asset turnover. 3.3% divides by the multiplier instead of multiplying."},{"sub":"A3.3","q":"In a common-size income statement, every line item is expressed as a percentage of which amount?","options":["Total assets","Net sales","Net income","The same line item in the prior year"],"answer":1,"steps":["Common-size income statement: each item ÷ net sales × 100","Common-size balance sheet: each item ÷ total assets × 100"],"result":"Base = net sales","why":"Total assets is the base for a common-size balance sheet. Comparing a line with its own prior-year amount is horizontal (trend) analysis."},{"sub":"A3.4","q":"Revenue was $1,250,000 in 2025 and $1,500,000 in 2026. In horizontal analysis with 2025 as the base year, what is the percentage change in revenue?","options":["16.7%","20.0%","25.0%","120.0%"],"answer":1,"steps":["Change = 1,500,000 − 1,250,000 = 250,000","Percentage change = change ÷ base-year amount"],"result":"250,000 ÷ 1,250,000 = 20.0%","why":"16.7% divides by the later year (250,000 ÷ 1,500,000). 120.0% is the index (2026 as a percentage of 2025), which includes the base itself. 25.0% has no basis in the data."},{"sub":"A1.6","q":"Net income is $2,400,000, preferred dividends are $200,000 and the weighted-average number of common shares is 1,000,000. What is basic earnings per share?","options":["$2.00","$2.20","$2.40","$2.60"],"answer":1,"steps":["Income available to common = 2,400,000 − 200,000 = 2,200,000","Basic EPS = income available to common ÷ weighted-average common shares"],"result":"2,200,000 ÷ 1,000,000 = $2.20","why":"$2.40 ignores preferred dividends. $2.60 adds them instead of subtracting. $2.00 subtracts them twice."},{"sub":"A1.5","q":"A stock pays dividends of $1.20 per share, earns $3.00 per share and trades at $40.00. What is its dividend yield?","options":["3.0%","7.5%","30.0%","40.0%"],"answer":0,"steps":["Dividend yield = dividends per share ÷ market price per share"],"result":"1.20 ÷ 40.00 = 3.0%","why":"40.0% is the dividend payout ratio (1.20 ÷ 3.00). 7.5% is the earnings yield (3.00 ÷ 40.00). 30.0% has no basis in the data."},{"sub":"A1.6","q":"On January 15, 2027, before the 2026 financial statements are issued, a company carries out a 2-for-1 stock split. How should 2026 basic EPS be presented?","options":["Leave 2026 EPS unchanged; the split first affects 2027 EPS","Weight the additional shares from January 15 for the time outstanding","Restate EPS for all periods presented as if the split happened at the start","Restate only the current year; earlier years stay as originally reported"],"answer":2,"steps":["A split changes the number of shares, not the company's resources","So every period presented is restated to keep EPS comparable"],"result":"Restate all periods presented","why":"Time-weighting applies to shares issued for cash or other consideration. A split or stock dividend is applied retroactively, even when it happens after year-end but before the statements are issued."},{"sub":"A1.1","q":"A company earned net income of $140,000 in the first four months of the year. The data below cover the same four months. What is the return on assets, annualized?","data":[["Net income, four months","140,000"],["Total assets at the start of the four months","2,600,000"],["Total assets at the end of the four months","3,000,000"]],"steps":["Annualized net income = 140,000 ÷ 4 × 12 = 420,000","Average total assets for the four months = (2,600,000 + 3,000,000) ÷ 2 = 2,800,000","Return on assets = 420,000 ÷ 2,800,000"],"result":"420,000 ÷ 2,800,000 = 15.0%","why":"5.0% skips the annualizing. 20.0% multiplies four months by 4 as if it were a quarter. 14.0% divides by the ending assets instead of the average for the period.","options":["5.0%","14.0%","15.0%","20.0%"],"answer":2},{"sub":"A1.1","q":"For which of these ratios is it acceptable to use year-end balances for both the numerator and the denominator?","steps":["The average-balance rule applies when an income statement amount is related to a balance sheet amount","It does not apply when both parts are balance sheet amounts","Only current assets ÷ current liabilities has two balance sheet amounts"],"result":"Current assets ÷ current liabilities","why":"Net income ÷ total assets, net credit sales ÷ accounts receivable and cost of goods sold ÷ inventory each put an income statement amount over a balance sheet amount, so the balance sheet item should be an average.","options":["Current assets ÷ current liabilities","Net income ÷ total assets","Net credit sales ÷ accounts receivable","Cost of goods sold ÷ inventory"],"answer":0},{"sub":"A1.1","q":"Equity investors usually analyze a company in more depth than its creditors do. What is the main reason?","steps":["In a bankruptcy, suppliers and lenders are paid before equity holders","Equity holders therefore carry the residual risk","A claim that is settled last needs the most careful analysis of earning power and risk"],"result":"Their claim is settled only after the claims of suppliers and lenders","why":"Equity investors do not rank ahead of lenders, and they have no legal duty to audit the statements. Their interest is long-term earning power, not only short-term liquidity.","options":["Their claims rank ahead of lenders in bankruptcy, so they need extra assurance about collateral","They are legally required to audit the statements before investing","They are concerned only with short-term liquidity, which takes more analysis to assess","Their claims are settled only after the claims of suppliers and lenders, so they bear the residual risk"],"answer":3},{"sub":"A3.1","q":"A company reports the items below, with no discontinued operations. What is its earnings before taxes (EBT)?","data":[["Operating income","900,000"],["Interest and dividend income","40,000"],["Non-operating loss","25,000"],["Interest expense","100,000"]],"steps":["EBIT = 900,000 + 40,000 − 25,000 = 915,000","EBT = EBIT − interest expense"],"result":"915,000 − 100,000 = 815,000","why":"800,000 starts from operating income and ignores the other items. 840,000 leaves out the non-operating loss. 915,000 is EBIT, before interest expense is deducted.","options":["800,000","815,000","840,000","915,000"],"answer":1},{"sub":"A3.1","q":"Which statement about operating income and income from continuing operations is correct?","steps":["Operating income covers only the core business","Income from continuing operations also includes financial income and expense, non-operating gains and losses, and tax on continuing operations"],"result":"They are different measures","why":"The two are not interchangeable. Operating income comes before financial and non-operating items and before tax. Income from continuing operations comes after them and excludes only discontinued operations.","options":["They are the same measure under two names","Income from continuing operations excludes interest expense but includes income taxes","Operating income includes discontinued operations but excludes taxes","They are different measures: income from continuing operations includes financial items, non-operating items and taxes on continuing operations"],"answer":3},{"sub":"A3.2","q":"An analyst wants to compare the cost structure of two companies of very different size for the same fiscal year. Which technique is most appropriate?","steps":["The goal is to remove the effect of size within a single period","Vertical analysis states each item as a percentage of a base from the same statement"],"result":"Vertical (common-size) analysis","why":"Horizontal trend analysis and variation analysis compare one company across several years. Index numbers are a form of horizontal analysis and need a base year.","options":["Vertical (common-size) analysis","Horizontal trend analysis","Variation analysis of annual growth rates","Index numbers with a common base year"],"answer":0},{"sub":"A3.2","q":"A company with net sales of 20,000,000 has cost of goods sold of 14,200,000. The industry common-size figure for cost of goods sold is 64.0% of sales. How much more cost, relative to the industry norm, does the company carry?","steps":["Company cost of goods sold = 14,200,000 ÷ 20,000,000 = 71.0% of sales","Gap = 71.0% − 64.0% = 7.0 percentage points","Dollar value = 7.0% × 20,000,000"],"result":"1,400,000","why":"1,000,000 is wrong because it applies 5.0% (a mis-subtraction). 1,200,000 uses 6.0%. 1,800,000 uses 9.0%. The gap must be measured in percentage points and then applied to sales.","options":["1,000,000","1,200,000","1,400,000","1,800,000"],"answer":2},{"sub":"A3.3","q":"A company reports the figures below. In its common-size income statement, operating income is what percentage of net sales?","data":[["Net sales","6,000,000"],["Cost of goods sold","3,900,000"],["SG&A expenses","1,080,000"]],"steps":["Gross profit = 6,000,000 − 3,900,000 = 2,100,000","Operating income = 2,100,000 − 1,080,000 = 1,020,000","Divide by the base, which is net sales"],"result":"1,020,000 ÷ 6,000,000 = 17.0%","why":"35.0% is the gross margin, 18.0% is SG&A as a share of sales, and 65.0% is cost of goods sold as a share of sales. Operating income comes after both costs are deducted.","options":["35.0%","18.0%","17.0%","65.0%"],"answer":2},{"sub":"A3.3","q":"Company A holds inventory equal to 40% of total assets on its common-size balance sheet. Company B holds inventory equal to 25% of total assets. Which conclusion is best supported by this information alone?","steps":["A common-size balance sheet shows composition, not size","40% against 25% compares the share of each asset base held in inventory","Dollar amounts, turnover speed and profitability cannot be read from these percentages"],"result":"A has a larger proportion of its assets in inventory","why":"Percentages say nothing about dollar size, so A may hold less inventory in dollars than B. They also say nothing about how fast inventory sells, which needs a turnover ratio.","options":["Company A holds more inventory in dollars than Company B","Company A has a larger proportion of its assets tied up in inventory","Company A turns its inventory over more slowly than Company B","Company A is more profitable than Company B"],"answer":1},{"sub":"A3.4","q":"In 2025 a company had sales of 5,000,000 and cost of goods sold of 3,000,000. In 2026 sales rose by 10% and cost of goods sold rose by 14%. What was gross profit in 2026?","steps":["2026 sales = 5,000,000 × 1.10 = 5,500,000","2026 cost of goods sold = 3,000,000 × 1.14 = 3,420,000","Gross profit = 5,500,000 − 3,420,000"],"result":"2,080,000","why":"2,200,000 grows 2025 gross profit at the sales growth rate. 2,280,000 grows it at the cost growth rate. 2,000,000 assumes gross profit did not change. Each line must be grown at its own rate before subtracting.","options":["2,080,000","2,200,000","2,280,000","2,000,000"],"answer":0},{"sub":"A3.4","q":"A company's gross margin fell from 40.0% in 2025 to 36.0% in 2026. Which description of the change is correct?","steps":["Percentage-point change = 40.0 − 36.0 = 4.0 points","Relative change = 4.0 ÷ 40.0 = 10.0%, measured against the earlier base"],"result":"A 4.0 percentage-point fall, or a 10.0% relative decline","why":"Dividing by the new margin gives 11.1%, which uses the wrong base. Swapping the two measures gives 10.0 points or a 4.0% decline. A 0.4-point fall confuses the scale of the change.","options":["A 4.0 percentage-point fall, which is an 11.1% relative decline","A 10.0 percentage-point fall, which is a 4.0% relative decline","A 0.4 percentage-point fall, which is a 4.0% relative decline","A 4.0 percentage-point fall, which is a 10.0% relative decline"],"answer":3},{"sub":"A3.4","q":"A revenue index with 2023 as the base year (2023 = 100) stands at 108 for 2024 and 120 for 2025. Revenue in 2025 was 3,000,000. What was revenue in 2024?","steps":["Revenue per index point = 3,000,000 ÷ 120 = 25,000","2024 revenue = 108 × 25,000"],"result":"2,700,000","why":"2,500,000 is the 2023 base-year revenue (index 100). 2,760,000 and 2,880,000 subtract 8% and 4% from 2025 revenue, which treats index points as percentages of the wrong base.","options":["2,500,000","2,760,000","2,700,000","2,880,000"],"answer":2},{"sub":"A3.4","q":"Revenue was 2,000,000 in 2022 and 2,662,000 in 2025. What is the compound annual growth rate?","steps":["Total growth = 2,662,000 ÷ 2,000,000 = 1.331","Number of years between 2022 and 2025 is n = 3","CAGR = 1.331^(1 ÷ 3) − 1"],"result":"1.100 − 1 = 10.0%","why":"33.1% is the total growth over the period. 8.3% divides total growth by 4 data points instead of 3 intervals. 11.0% divides total growth by 3, which ignores compounding.","options":["33.1%","10.0%","8.3%","11.0%"],"answer":1},{"sub":"A3.4","q":"A retailer earns its highest sales every fourth quarter because of holiday shopping. Which comparison gives the most reliable view of its sales growth trend?","steps":["The fourth quarter is high every year for seasonal reasons","A like-for-like comparison removes the seasonal effect","That means comparing with the same quarter a year earlier"],"result":"This year's fourth quarter against last year's fourth quarter","why":"Comparing the fourth quarter with the third quarter mixes growth with the seasonal jump. Comparing it with the annual quarterly average or with the next first quarter has the same problem.","options":["This year's fourth quarter against last year's fourth quarter","This year's fourth quarter against this year's third quarter","This year's fourth quarter against the average quarter of the year","This year's fourth quarter against next year's first quarter"],"answer":0}];
+
+  var LETTERS = ['A', 'B', 'C', 'D'];
+  var app = document.getElementById('app');
+  var byId = {};
+  NOTES.forEach(function (n) { byId[n.id] = n; });
+  var unitById = {};
+  UNITS.forEach(function (u) { unitById[u.id] = u; });
+
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  /* **bold**, and [[ABBR|Full form]] which renders a bold term that shows its full form when tapped */
+  function fmt(s) {
+    return esc(s).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/\[\[(.+?)\|(.+?)\]\]/g, function (m, a, f) {
+      return '<button type="button" class="abbr" aria-expanded="false" data-full="' + f + '"><strong>' + a + '</strong></button>';
+    });
+  }
+  function attr(o) { return esc(JSON.stringify(o)); }
+  function subsOf(uid) { return NOTES.filter(function (n) { return n.unit === uid; }); }
+  function unitsOf(p, s) { return UNITS.filter(function (u) { return u.part === p && u.section === s; }); }
+  function unitMeta(u) { return esc(u.blurb); }
+  function sectionMeta(p, s) {
+    var part = META.parts.filter(function (x) { return x.n === p; })[0];
+    return { part: part, sec: part ? part.sections.filter(function (x) { return x.id === s; })[0] : null };
+  }
+
+  /* studied marks, kept per viewer in the browser when storage is available */
+  var studied = {};
+  try { studied = JSON.parse(localStorage.getItem('cma-guide-studied') || '{}') || {}; } catch (e) { studied = {}; }
+  function saveStudied() { try { localStorage.setItem('cma-guide-studied', JSON.stringify(studied)); } catch (e) {} }
+  function countStudied(list) { return list.filter(function (n) { return studied[n.id]; }).length; }
+  /* round mark after a unit or sub-unit name: tap it to mark as studied (turns green) */
+  function stuBtn(id, title) {
+    var on = !!studied[id];
+    return '<button type="button" class="stu' + (on ? ' on' : '') + '" data-id="' + esc(id) + '" aria-pressed="' + on + '" aria-label="Mark as studied: ' + esc(title) + '">' +
+      '<svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M3 8.5l3.2 3.2L13 5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>';
+  }
+
+  /* routes */
+  function token(r) {
+    if (r.v === 'home') return '';
+    var t = 'p' + r.p;
+    if (r.v === 'part') return t;
+    t += '-' + r.s;
+    if (r.v === 'section') return t;
+    if (r.v === 'unit') return t + '-' + r.u;
+    if (r.v === 'topic') return t + '-' + r.sub + '.' + r.topic;
+    return t + '-' + r.sub;
+  }
+  function parseHash(h) {
+    var t = String(h || '').replace(/^#/, '');
+    var m = t.match(/^p([12])(?:-([A-F])(?:-([A-F]\d+)(?:\.(\d+)(?:\.(\d+))?)?)?)?$/);
+    if (!m) return { v: 'home' };
+    var p = +m[1];
+    if (!m[2]) return { v: 'part', p: p };
+    var sm = sectionMeta(p, m[2]);
+    if (!sm.sec || !sm.sec.ready) return { v: 'part', p: p };
+    if (!m[3]) return { v: 'section', p: p, s: m[2] };
+    if (!unitById[m[3]] || !subsOf(m[3]).length) return { v: 'section', p: p, s: m[2] };
+    if (m[4] === undefined) return { v: 'unit', p: p, s: m[2], u: m[3] };
+    var id = m[3] + '.' + m[4];
+    if (!byId[id]) return { v: 'unit', p: p, s: m[2], u: m[3] };
+    if (m[5] !== undefined) {
+      var tn = byId[id].topics;
+      if (tn && tn[+m[5] - 1] && tn[+m[5] - 1].blocks.length) return { v: 'topic', p: p, s: m[2], u: m[3], sub: id, topic: +m[5] };
+    }
+    return { v: 'sub', p: p, s: m[2], u: m[3], sub: id };
+  }
+  var route = parseHash(location.hash);
+  var quiz = null;
+
+  function setHash(r) { try { location.hash = token(r); } catch (e) {} }
+  function nav(r) {
+    route = r; quiz = null;
+    render();
+    setHash(r);
+    window.scrollTo(0, 0);
+  }
+  window.addEventListener('hashchange', function () {
+    var r = parseHash(location.hash);
+    if (token(r) === token(route) && !quiz) return;
+    route = r; quiz = null; render(); window.scrollTo(0, 0);
+  });
+
+  function crumbs(items, cls) {
+    return '<nav class="crumbs' + (cls ? ' ' + cls : '') + '" aria-label="Breadcrumb">' + items.map(function (c) {
+      return c.r ? '<button type="button" class="crumb" data-go="' + attr(c.r) + '">' + esc(c.l) + '</button>'
+        : '<span class="crumb cur" aria-current="page">' + esc(c.l) + '</span>';
+    }).join('<span class="sep">/</span>') + '</nav>';
+  }
+  var HOME = { v: 'home' };
+  function partRoute(p) { return { v: 'part', p: p }; }
+  function secRoute(p, s) { return { v: 'section', p: p, s: s }; }
+  function unitRoute(r, u) { return { v: 'unit', p: r.p, s: r.s, u: u }; }
+  function topicRoute(r, sub, i) { return { v: 'topic', p: r.p, s: r.s, u: sub.split('.')[0], sub: sub, topic: i }; }
+  function toRoman(n) {
+    var map = [[10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I']], out = '';
+    map.forEach(function (m) { while (n >= m[0]) { out += m[1]; n -= m[0]; } });
+    return out;
+  }
+  function subRoute(r, sub) { return { v: 'sub', p: r.p, s: r.s, u: sub.split('.')[0], sub: sub }; }
+
+  /* ---------- home ---------- */
+  function renderHome() {
+    app.innerHTML =
+      '<header class="homehead"><button type="button" class="profile" aria-label="Profile" aria-expanded="false" aria-controls="pcard"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8.5" r="4"/><path d="M4 21c0-4.4 3.6-7.5 8-7.5s8 3.1 8 7.5"/></svg></button>' +
+      '<div class="pcard" id="pcard" role="dialog" aria-label="Profile" hidden>' +
+      '<p class="pname">MUHAMMED YASIN</p>' +
+      '<a class="pig" href="https://www.instagram.com/_yasin.c/" target="_blank" rel="noopener noreferrer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.5"/></svg><span><b>Instagram</b><i>_yasin.c</i></span></a>' +
+      '<a class="pfb" href="https://ig.me/m/_yasin.c" target="_blank" rel="noopener noreferrer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1h-9l-5 4v-4H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z"/></svg>Any Suggestions</a>' +
+      '</div>' +
+      '<p class="eyebrow">CMA exam preparation</p><h1>CMA Study Guide</h1>' +
+      '<p class="lede">Choose a part, open a section, then work down through its units to the notes and practice questions for each topic.</p></header>' +
+      '<div class="parts">' + META.parts.map(function (p) {
+        var ready = p.sections.filter(function (s) { return s.ready; }).length;
+        return '<button type="button" class="part" data-go="' + attr(partRoute(p.n)) + '">' +
+          '<span class="pn">Part ' + p.n + '</span><span class="pt">' + esc(p.title) + '</span>' +
+          '<ul>' + p.sections.map(function (s) { return '<li class="' + (s.ready ? 'on' : '') + '"><span class="k">' + s.id + '</span><span>' + esc(s.title) + '</span></li>'; }).join('') + '</ul>' +
+          '<span class="pf">' + (ready ? 'Section A is open · ' + NOTES.length + ' sub-units ready' : 'Notes coming soon') + '</span></button>';
+      }).join('') + '</div>' +
+      '<p class="foot">Unofficial study aid. The structure follows the ICMA content specification. Notes and questions are original, and the guide is not affiliated with or endorsed by IMA or ICMA.</p>';
+  }
+
+  /* ---------- part ---------- */
+  function renderPart() {
+    var part = META.parts.filter(function (x) { return x.n === route.p; })[0];
+    app.innerHTML =
+      '<header><p class="eyebrow">Part ' + part.n + '</p><h1>' + esc(part.title) + '</h1></header>' +
+      '<div class="rows">' + part.sections.map(function (s) {
+        var inner = '<span class="k">' + s.id + '</span><span class="rt"><span class="rn">' + esc(s.title) + '</span>' +
+          '<span class="rm">' + s.weight + '% of the Part ' + part.n + ' exam</span></span>' +
+          '<span class="rp"><span class="pill' + (s.ready ? '' : ' soon') + '">' + (s.ready ? 'Open' : 'Coming soon') + '</span></span>';
+        return s.ready
+          ? '<button type="button" class="row" data-go="' + attr(secRoute(part.n, s.id)) + '">' + inner + '</button>'
+          : '<div class="row off" aria-disabled="true">' + inner + '</div>';
+      }).join('') + '</div>';
+  }
+
+  /* ---------- section ---------- */
+  function renderSection() {
+    var sm = sectionMeta(route.p, route.s);
+    var units = unitsOf(route.p, route.s);
+    var subs = NOTES.filter(function (n) { return units.some(function (u) { return u.id === n.unit; }); });
+    var readyUnits = units.filter(function (u) { return subsOf(u.id).length; });
+    var done = countStudied(readyUnits);
+    var pct = readyUnits.length ? Math.round(done / readyUnits.length * 100) : 0;
+    var qn = QUESTIONS.filter(function (q) { return byId[q.sub]; }).length;
+    app.innerHTML =
+      '<header><p class="eyebrow">Part ' + route.p + ' · Section ' + route.s + '</p><h1>' + esc(sm.sec.title) + '</h1>' +
+      '<p class="meta" style="margin-top:10px"><span><b>' + sm.sec.weight + '%</b> of the exam</span><span><b>' + units.length + '</b> units</span><span><b>' + subs.length + '</b> sub-units ready</span><span><b>' + qn + '</b> practice questions</span></p></header>' +
+      '<section class="panel"><div class="meta"><span><b>' + done + ' of ' + readyUnits.length + '</b> units marked as studied</span></div>' +
+      '<div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + pct + '"><i style="width:' + pct + '%"></i></div>' +
+      '<div class="actions"><button type="button" class="btn" data-act="quiz" data-scope="sec" data-key="' + route.s + '"' + (qn ? '' : ' disabled') + '>Practice the whole section (' + qn + ')</button></div></section>' +
+      '<h2>Units</h2><div class="rows">' + units.map(function (u) {
+        var us = subsOf(u.id);
+        if (!us.length) {
+          return '<div class="row off unitrow" aria-disabled="true"><span class="k">' + u.id + '</span><span class="rt"><span class="rn">' + esc(u.title) + '</span><span class="rm">' + unitMeta(u) + '</span></span>' +
+            '<span class="rp"><span class="pill soon">Coming soon</span></span></div>';
+        }
+        return '<div class="row rowx unitrow"><button type="button" class="hit" data-go="' + attr(unitRoute(route, u.id)) + '" aria-label="Open ' + esc(u.id + ' ' + u.title) + '"></button>' +
+          '<span class="k">' + u.id + '</span><span class="rt"><span class="rn">' + esc(u.title) + stuBtn(u.id, u.title) + '</span><span class="rm">' + unitMeta(u) + '</span>' +
+          '</span>' +
+          '<span class="rp"><span>' + us.length + ' sub-units</span></span></div>';
+      }).join('') + '</div>';
+  }
+
+  /* ---------- unit ---------- */
+  function renderUnit() {
+    var u = unitById[route.u];
+    var sm = sectionMeta(route.p, route.s);
+    var us = subsOf(u.id);
+    var qn = QUESTIONS.filter(function (q) { return byId[q.sub] && q.sub.split('.')[0] === u.id; }).length;
+    app.innerHTML =
+      '<header><p class="eyebrow">Unit ' + u.id + '</p><h1>' + esc(u.title) + '</h1><p class="lede">' + unitMeta(u) + '</p></header>' +
+      '<div class="actions"><button type="button" class="btn" data-act="quiz" data-scope="unit" data-key="' + u.id + '"' + (qn ? '' : ' disabled') + '>Practice this unit (' + qn + ')</button></div>' +
+      '<div class="rows">' + us.map(function (n) {
+        return '<div class="row rowx"><button type="button" class="hit" data-go="' + attr(subRoute(route, n.id)) + '" aria-label="Open ' + esc(n.id + ' ' + n.title) + '"></button>' +
+          '<span class="k">' + n.id + '</span><span class="rt"><span class="rn">' + esc(n.title) + '</span><span class="rm">' + esc(n.summary) + '</span></span></div>';
+      }).join('') + '</div>';
+  }
+
+  /* ---------- sub-unit notes ---------- */
+  /* small > button that opens and closes extra detail, and the panel it controls */
+  function moreBtn(id) {
+    return ' <button type="button" class="more-btn" aria-expanded="false" aria-controls="' + id + '" aria-label="Show details">' +
+      '<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" focusable="false"><path d="M5 2l5 5-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>';
+  }
+  function morePanel(id, list) {
+    return '<div class="more" id="' + id + '" hidden>' + list.map(function (x) { return '<p>' + fmt(x) + '</p>'; }).join('') + '</div>';
+  }
+  function blockHtml(b, idx) {
+    switch (b.t) {
+      case 'h': return '<h3 class="nh" id="nh' + idx + '">' + esc(b.text) + '</h3>';
+      case 'p':
+        /* a paragraph with a "more" list ends in a small > button that opens and closes the extra detail */
+        if (b.more && b.more.length) {
+          var mid = 'more' + idx;
+          return '<div class="pm' + (b.point ? ' pt' : '') + '"><p>' + fmt(b.text) + moreBtn(mid) + '</p>' + morePanel(mid, b.more) + '</div>';
+        }
+        return '<p' + (b.point ? ' class="pt"' : '') + '>' + fmt(b.text) + '</p>';
+      case 'ul': return '<ul>' + b.items.map(function (x) { return '<li>' + fmt(x) + '</li>'; }).join('') + '</ul>';
+      case 'ol': return '<ol>' + b.items.map(function (x) { return '<li>' + fmt(x) + '</li>'; }).join('') + '</ol>';
+      case 'formula':
+        return '<div class="fm">' + (b.title ? '<div class="cap">' + esc(b.title) + '</div>' : '') + b.rows.map(function (r) {
+          return '<div class="fr"><span class="fl">' + fmt(r[0]) + '</span>' + (r[1] ? '<span class="fx">' + esc(r[1]) + '</span>' : '') + (r[2] ? '<span class="fn">' + fmt(r[2]) + '</span>' : '') + '</div>';
+        }).join('') + '</div>';
+      case 'fraction':
+        return '<div class="fm fq"><span class="fql">' + fmt(b.left) + '</span><span class="frac"><span class="ft">' + fmt(b.top) + '</span><span class="fb">' + fmt(b.bottom) + '</span></span></div>';
+      case 'table':
+        return '<div class="tbw"><div class="tbs"><table><thead><tr>' + b.head.map(function (h) { return '<th>' + esc(h) + '</th>'; }).join('') + '</tr></thead><tbody>' +
+          b.rows.map(function (r) { return '<tr>' + r.map(function (c) { return '<td>' + fmt(c) + '</td>'; }).join('') + '</tr>'; }).join('') +
+          '</tbody></table></div>' + (b.caption ? '<div class="tc">' + fmt(b.caption) + '</div>' : '') + '</div>';
+      case 'example':
+        return '<div class="ex"><div class="exh"><span class="tag">Worked example</span><strong>' + esc(b.title) + '</strong></div>' +
+          '<div class="given"><div class="cap">Given</div><dl>' + b.given.map(function (g) { return '<div class="grow"><dt>' + esc(g[0]) + '</dt><dd>' + esc(g[1]) + '</dd></div>'; }).join('') + '</dl></div>' +
+          '<div class="working">' + b.steps.map(function (s) { return '<span class="ln">' + esc(s) + '</span>'; }).join('') + '<span class="res">' + esc(b.result) + '</span></div>' +
+          (b.note ? '<p class="why">' + fmt(b.note) + '</p>' : '') + '</div>';
+      case 'terms':
+        return '<div class="terms"><div class="cap">Key terms</div><dl>' + b.items.map(function (t) { return '<div class="tr"><dt>' + esc(t[0]) + '</dt><dd>' + fmt(t[1]) + '</dd></div>'; }).join('') + '</dl></div>';
+      case 'trap':
+        return '<div class="trap"><div class="cap">Exam traps</div><ul>' + b.items.map(function (x) { return '<li>' + fmt(x) + '</li>'; }).join('') + '</ul></div>';
+      case 'recall':
+        return '<div class="recall"><div class="cap">Quick recall</div><ul>' + b.items.map(function (x) { return '<li>' + fmt(x) + '</li>'; }).join('') + '</ul></div>';
+    }
+    return '';
+  }
+
+  function renderSub() {
+    var n = byId[route.sub];
+    var u = unitById[n.unit];
+    var qn = QUESTIONS.filter(function (q) { return q.sub === n.id; }).length;
+    var heads = [];
+    n.blocks.forEach(function (b, i) { if (b.t === 'h') heads.push({ i: i, t: b.text }); });
+    app.innerHTML =
+      '<header class="nhead"><span class="tag" style="align-self:flex-start">' + n.id + '</span><h1>' + esc(n.title) + '</h1>' +
+      (n.more && n.more.length ? '<div class="pm"><p class="lede" style="margin-top:0">' + esc(n.summary) + moreBtn('more-sum') + '</p>' + morePanel('more-sum', n.more) + '</div>'
+        : '<p class="lede" style="margin-top:0">' + esc(n.summary) + '</p>') +
+      (qn ? '<div class="actions"><button type="button" class="btn" data-act="quiz" data-scope="sub" data-key="' + n.id + '">Practice questions (' + qn + ')</button></div>' : '') +
+      (heads.length > 1 ? '<div class="toc" aria-label="On this page">' + heads.map(function (h) { return '<button type="button" data-act="toc" data-i="' + h.i + '">' + esc(h.t) + '</button>'; }).join('') + '</div>' : '') +
+      '</header>' +
+      (n.blocks.length ? '<article class="notes">' + n.blocks.map(blockHtml).join('') + '</article>' : '') +
+      (n.topics && n.topics.length ? '<div class="rows">' + n.topics.map(function (t, i) {
+        if (!t.blocks.length) return '<div class="row off topicrow" aria-disabled="true"><span class="k">' + toRoman(i + 1) + '</span><span class="rt"><span class="rn">' + esc(t.title) + '</span></span><span class="rp"><span class="pill soon">Coming soon</span></span></div>';
+        return '<div class="row rowx topicrow"><button type="button" class="hit" data-go="' + attr(topicRoute(route, n.id, i + 1)) + '" aria-label="Open ' + esc(t.title) + '"></button>' +
+          '<span class="k">' + toRoman(i + 1) + '</span><span class="rt"><span class="rn">' + esc(t.title) + '</span></span>' +
+          '<span class="rp"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></span></div>';
+      }).join('') + '</div>' : '') +
+      (n.blocks.length && qn ? '<div class="actions"><button type="button" class="btn" data-act="quiz" data-scope="sub" data-key="' + n.id + '">Practice questions (' + qn + ')</button></div>' : '') +
+      '';
+  }
+
+  /* ---------- topic (inside a sub-unit, listed with Roman numerals) ---------- */
+  function renderTopic() {
+    var n = byId[route.sub], t = n.topics[route.topic - 1];
+    app.innerHTML =
+      '<header class="nhead"><span class="tag" style="align-self:flex-start">' + n.id + ' \u00b7 ' + toRoman(route.topic) + '</span><h1>' + esc(t.title) + '</h1></header>' +
+      '<article class="notes">' + t.blocks.map(blockHtml).join('') + '</article>';
+  }
+
+  /* ---------- quiz ---------- */
+  function shuffled(arr) {
+    var a = arr.slice();
+    for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = a[i]; a[i] = a[j]; a[j] = t; }
+    return a;
+  }
+  function poolFor(scope, key) {
+    var out = [];
+    QUESTIONS.forEach(function (q, k) {
+      if (!byId[q.sub]) return;
+      if (scope === 'sec' || (scope === 'unit' && q.sub.split('.')[0] === key) || (scope === 'sub' && q.sub === key)) out.push(k);
+    });
+    return out;
+  }
+  function label(scope, key) {
+    if (scope === 'sub') return key + ' ' + byId[key].title;
+    if (scope === 'unit') return 'Unit ' + key + ' ' + unitById[key].title;
+    return 'Section ' + key + ' ' + sectionMeta(route.p, key).sec.title;
+  }
+  function startQuiz(scope, key, subset) {
+    var pool = subset || poolFor(scope, key);
+    if (!pool.length) return;
+    quiz = { scope: scope, key: key, back: route, label: label(scope, key), queue: scope === 'sec' || subset ? shuffled(pool) : pool, i: 0, picked: null, results: [], done: false };
+    render();
+    window.scrollTo(0, 0);
+  }
+  function renderQuiz() {
+    if (quiz.done) return renderResult();
+    var idx = quiz.queue[quiz.i], q = QUESTIONS[idx], answered = quiz.picked !== null;
+    var pct = Math.round((quiz.i + (answered ? 1 : 0)) / quiz.queue.length * 100);
+    var dataHtml = q.data ? '<div class="given"><div class="cap">Given (US$)</div><dl>' + q.data.map(function (r) { return '<div class="grow"><dt>' + esc(r[0]) + '</dt><dd>' + esc(r[1]) + '</dd></div>'; }).join('') + '</dl></div>' : '';
+    var opts = q.options.map(function (t, k) {
+      var cls = 'opt';
+      if (answered) { cls += k === q.answer ? ' correct' : (k === quiz.picked ? ' wrong' : ' dim'); }
+      return '<button type="button" class="' + cls + '" data-opt="' + k + '"' + (answered ? ' disabled' : '') + '><span class="key">' + LETTERS[k] + '</span><span class="txt">' + esc(t) + '</span></button>';
+    }).join('');
+    var fb = '';
+    if (answered) {
+      var ok = quiz.picked === q.answer, last = quiz.i === quiz.queue.length - 1;
+      fb = '<div class="explain' + (ok ? '' : ' miss') + '"><p class="verdict">' + (ok ? 'Correct' : 'Not quite. The answer is ' + LETTERS[q.answer]) + '</p>' +
+        '<div class="working">' + q.steps.map(function (s) { return '<span class="ln">' + esc(s) + '</span>'; }).join('') + '<span class="res">' + esc(q.result) + '</span></div>' +
+        '<p class="why">' + fmt(q.why) + '</p></div>' +
+        '<div class="actions"><button type="button" class="btn" id="next">' + (last ? 'See results' : 'Next question') + '</button></div>';
+    }
+    app.innerHTML =
+      '<div class="topbar"><span class="count">Question ' + (quiz.i + 1) + ' of ' + quiz.queue.length + '</span><span class="right"><span class="tag">' + esc(q.sub) + '</span><button type="button" class="link" data-act="exit">Exit</button></span></div>' +
+      '<div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + pct + '"><i style="width:' + pct + '%"></i></div>' +
+      '<section class="panel"><p class="qtext">' + esc(q.q) + '</p>' + dataHtml + '<div class="options" role="group" aria-label="Answer choices">' + opts + '</div></section>' +
+      '<div id="feedback" aria-live="polite">' + fb + '</div>';
+    if (answered) {
+      var nb = document.getElementById('next'); if (nb) nb.focus({ preventScroll: true });
+      var f = document.getElementById('feedback'); if (f && f.scrollIntoView) f.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  }
+  function pick(k) {
+    if (!quiz || quiz.done || quiz.picked !== null) return;
+    var idx = quiz.queue[quiz.i];
+    quiz.picked = k;
+    quiz.results.push({ idx: idx, ok: k === QUESTIONS[idx].answer });
+    render();
+  }
+  function nextQ() {
+    if (!quiz || quiz.picked === null) return;
+    if (quiz.i < quiz.queue.length - 1) { quiz.i++; quiz.picked = null; } else { quiz.done = true; }
+    render(); window.scrollTo(0, 0);
+  }
+  function renderResult() {
+    var total = quiz.results.length, right = quiz.results.filter(function (r) { return r.ok; }).length;
+    var pct = total ? Math.round(right / total * 100) : 0;
+    var msg = pct >= 80 ? 'Strong result. Read the working for anything you missed, then move on.' : pct >= 60 ? 'A solid base. The sub-units marked in red need another pass through the notes.' : 'Go back to the notes for the sub-units in red, then retry the missed questions.';
+    var by = {}, order = [];
+    quiz.results.forEach(function (r) {
+      var s = QUESTIONS[r.idx].sub;
+      if (!by[s]) { by[s] = { n: 0, ok: 0 }; order.push(s); }
+      by[s].n++; if (r.ok) by[s].ok++;
+    });
+    order.sort();
+    var rows = order.map(function (s) {
+      var b = by[s], p = Math.round(b.ok / b.n * 100), cls = p === 100 ? 'strong' : p < 60 ? 'weak' : '';
+      return '<div class="r ' + cls + '"><span>' + s + ' ' + esc(byId[s].title) + '</span><span class="sc">' + b.ok + ' / ' + b.n + '</span><div class="bar"><i style="width:' + p + '%"></i></div></div>';
+    }).join('');
+    var missed = quiz.results.filter(function (r) { return !r.ok; });
+    var weakSubs = order.filter(function (s) { return by[s].ok < by[s].n; });
+    var missedHtml = missed.length ? '<section class="panel"><h2>Questions to revisit</h2><div class="missed">' + missed.map(function (r) {
+      var q = QUESTIONS[r.idx];
+      return '<div class="m"><span class="tag" style="align-self:flex-start">' + esc(q.sub) + '</span><p>' + esc(q.q) + '</p><p class="a">Correct answer: <b>' + LETTERS[q.answer] + '. ' + esc(q.options[q.answer]) + '</b></p></div>';
+    }).join('') + '</div></section>' : '';
+    var review = weakSubs.length ? '<section class="panel"><h2>Review the notes</h2><div class="rows">' + weakSubs.map(function (s) {
+      return '<button type="button" class="row" data-go="' + attr({ v: 'sub', p: quiz.back.p, s: quiz.back.s, u: s.split('.')[0], sub: s }) + '"><span class="k">' + s + '</span><span class="rt"><span class="rn">' + esc(byId[s].title) + '</span></span></button>';
+    }).join('') + '</div></section>' : '';
+    app.innerHTML =
+      '<header><p class="eyebrow">Results</p><h1>' + esc(quiz.label) + '</h1></header>' +
+      '<section class="panel"><div class="score"><span class="big">' + right + ' / ' + total + '</span><span class="pct">' + pct + '% correct</span></div><p>' + msg + '</p>' +
+      '<div class="actions">' + (missed.length ? '<button type="button" class="btn" data-act="retry">Retry missed (' + missed.length + ')</button>' : '') + '<button type="button" class="btn ghost" data-act="exit">Back to the notes</button></div></section>' +
+      '<section class="panel"><h2>By sub-unit</h2><div class="brk">' + rows + '</div></section>' + review + missedHtml;
+  }
+
+  /* full-form popover for [[ABBR|Full form]] terms */
+  var tip = document.createElement('div');
+  tip.className = 'tip'; tip.id = 'tip'; tip.setAttribute('role', 'tooltip'); tip.hidden = true;
+  document.body.appendChild(tip);
+  var tipFor = null;
+  function hideTip() {
+    if (tipFor) { tipFor.setAttribute('aria-expanded', 'false'); tipFor.removeAttribute('aria-describedby'); }
+    tipFor = null; tip.hidden = true;
+  }
+  function showTip(btn) {
+    hideTip();
+    tip.textContent = btn.getAttribute('data-full');
+    tip.hidden = false;
+    var r = btn.getBoundingClientRect(), sx = window.pageXOffset || 0, sy = window.pageYOffset || 0;
+    var maxLeft = sx + document.documentElement.clientWidth - tip.offsetWidth - 16;
+    tip.style.left = Math.max(sx + 16, Math.min(r.left + sx, maxLeft)) + 'px';
+    tip.style.top = (r.bottom + sy + 8) + 'px';
+    btn.setAttribute('aria-expanded', 'true'); btn.setAttribute('aria-describedby', 'tip');
+    tipFor = btn;
+  }
+
+  /* small note that pops up beside the round mark and fades away */
+  var toast = document.createElement('div');
+  toast.className = 'toast'; toast.setAttribute('role', 'status'); toast.setAttribute('aria-live', 'polite'); toast.hidden = true;
+  document.body.appendChild(toast);
+  var toastTimer = null, toastHide = null;
+  function showToast(anchor, text, good) {
+    clearTimeout(toastTimer); clearTimeout(toastHide);
+    toast.textContent = text;
+    toast.className = 'toast' + (good ? '' : ' off');
+    toast.hidden = false;
+    var r = anchor.getBoundingClientRect(), sx = window.pageXOffset || 0, sy = window.pageYOffset || 0;
+    var w = toast.offsetWidth, h = toast.offsetHeight, vw = document.documentElement.clientWidth;
+    var left = r.right + sx + 10, top = r.top + sy + (r.height - h) / 2;
+    if (r.right + 10 + w > vw - 12) { left = Math.max(sx + 12, Math.min(r.left + sx, sx + vw - w - 12)); top = r.bottom + sy + 8; }
+    toast.style.left = left + 'px'; toast.style.top = top + 'px';
+    void toast.offsetWidth;
+    toast.className += ' show';
+    toastTimer = setTimeout(function () {
+      toast.className = toast.className.replace(' show', '');
+      toastHide = setTimeout(function () { toast.hidden = true; }, 250);
+    }, 1700);
+  }
+  function toggleStudied(btn) {
+    var id = btn.getAttribute('data-id');
+    var on = !studied[id];
+    if (on) studied[id] = true; else delete studied[id];
+    saveStudied();
+    Array.prototype.forEach.call(document.querySelectorAll('.stu'), function (el) {
+      if (el.getAttribute('data-id') !== id) return;
+      el.classList.toggle('on', on); el.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+    if (route.v === 'section') {
+      var ru = unitsOf(route.p, route.s).filter(function (x) { return subsOf(x.id).length; }), dn = countStudied(ru);
+      var pb = document.querySelector('.panel .meta b'); if (pb) pb.textContent = dn + ' of ' + ru.length;
+      var pbar = document.querySelector('.panel .bar'); if (pbar) { var w = ru.length ? Math.round(dn / ru.length * 100) : 0; pbar.setAttribute('aria-valuenow', w); pbar.firstChild.style.width = w + '%'; }
+    }
+    showToast(btn, on ? 'Marked as studied' : 'Removed from studied', on);
+    if (btn.focus) btn.focus({ preventScroll: true });
+  }
+
+  /* profile card on Home: name, Instagram and a feedback link */
+  function toggleProfile(force) {
+    var card = document.getElementById('pcard'), btn = document.querySelector('.profile');
+    if (!card || !btn) return;
+    var open = typeof force === 'boolean' ? force : card.hidden;
+    card.hidden = !open; btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  }
+
+  /* breadcrumb items for the pinned bottom bar: Part, Section, Unit and Sub-unit pages */
+  function crumbItems() {
+    var r = route;
+    if (quiz || r.v === 'home') return null;
+    var items = [{ l: 'Home', r: HOME }];
+    if (r.v === 'part') { items.push({ l: 'Part ' + r.p }); return items; }
+    items.push({ l: 'Part ' + r.p, r: partRoute(r.p) });
+    if (r.v === 'section') { items.push({ l: 'Section ' + r.s }); return items; }
+    items.push({ l: 'Section ' + r.s, r: secRoute(r.p, r.s) });
+    if (r.v === 'unit') { items.push({ l: r.u }); return items; }
+    items.push({ l: r.u, r: unitRoute(r, r.u) });
+    if (r.v === 'topic') {
+      items.push({ l: r.sub, r: subRoute(r, r.sub) });
+      items.push({ l: byId[r.sub].topics[r.topic - 1].title });
+      return items;
+    }
+    items.push({ l: r.sub });
+    return items;
+  }
+  function render() {
+    hideTip();
+    app.classList.remove('has-bar');
+    if (quiz) return renderQuiz();
+    if (route.v === 'part') renderPart();
+    else if (route.v === 'section') renderSection();
+    else if (route.v === 'unit') renderUnit();
+    else if (route.v === 'sub') renderSub();
+    else if (route.v === 'topic') renderTopic();
+    else renderHome();
+    var items = crumbItems();
+    if (items) {
+      app.classList.add('has-bar');
+      app.insertAdjacentHTML('beforeend', '<div class="crumbbar"><div class="crumbbar-in">' + crumbs(items, 'big') + '</div></div>');
+    }
+  }
+
+  /* ---------- events ---------- */
+  app.addEventListener('click', function (e) {
+    var t = e.target;
+    if (!t.closest) return;
+    var pf = t.closest('.profile');
+    if (pf) { toggleProfile(); return; }
+    var st = t.closest('.stu');
+    if (st) { toggleStudied(st); return; }
+    var mb = t.closest('.more-btn');
+    if (mb) {
+      var panel = document.getElementById(mb.getAttribute('aria-controls'));
+      var open = mb.getAttribute('aria-expanded') !== 'true';
+      mb.setAttribute('aria-expanded', open ? 'true' : 'false');
+      mb.setAttribute('aria-label', open ? 'Hide details' : 'Show details');
+      if (panel) panel.hidden = !open;
+      return;
+    }
+    var ab = t.closest('.abbr');
+    if (ab) { if (tipFor === ab) hideTip(); else showTip(ab); return; }
+    var opt = t.closest('[data-opt]');
+    if (opt) { pick(parseInt(opt.getAttribute('data-opt'), 10)); return; }
+    var go = t.closest('[data-go]');
+    if (go) { try { nav(JSON.parse(go.getAttribute('data-go'))); } catch (err) {} return; }
+    var act = t.closest('[data-act]');
+    if (act) {
+      var a = act.getAttribute('data-act');
+      if (a === 'quiz') startQuiz(act.getAttribute('data-scope'), act.getAttribute('data-key'));
+      else if (a === 'toc') {
+        var h = document.getElementById('nh' + act.getAttribute('data-i'));
+        if (h && h.scrollIntoView) h.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } else if (a === 'exit') { var back = quiz ? quiz.back : HOME; quiz = null; route = back; render(); window.scrollTo(0, 0); }
+      else if (a === 'retry') {
+        var miss = quiz.results.filter(function (r) { return !r.ok; }).map(function (r) { return r.idx; });
+        var s = quiz.scope, k = quiz.key; startQuiz(s, k, miss);
+      }
+      return;
+    }
+    if (t.closest('#next')) nextQ();
+  });
+  document.addEventListener('click', function (e) { if (tipFor && !(e.target.closest && e.target.closest('.abbr'))) hideTip(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { hideTip(); toggleProfile(false); } });
+  document.addEventListener('click', function (e) { if (e.target.closest && !e.target.closest('.profile') && !e.target.closest('.pcard')) toggleProfile(false); });
+  window.addEventListener('resize', hideTip);
+  document.addEventListener('keydown', function (e) {
+    if (!quiz || quiz.done || quiz.picked !== null || e.ctrlKey || e.metaKey || e.altKey) return;
+    var k = e.key.toLowerCase(), n = 'abcd'.indexOf(k);
+    if (n < 0) n = '1234'.indexOf(k);
+    if (n >= 0) pick(n);
+  });
+
+  render();
+})();
+</script>
+
+</body></html>
